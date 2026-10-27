@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2453c4">
+<meta name="theme-color" content="#101a3a">
 <meta name="description" content="Listens to kirtan and moves the Gurbani slides by itself.">
 <title>Kirtan Follow</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -11,290 +11,395 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@500;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Paaji+2:wght@600;800&family=Noto+Sans+Gurmukhi:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* Phone-first: the slide is the hero, controls under the thumb. Wide screens: slide left, controls right. */
+  /* Kirtan Follow, sewadar console.
+     Colours come from the darbar hall: night-blue ink, the blue Gurbani slide, kesri, palki gold.
+     Layout matches the laptop app: tools on the left, "On screen" on the right.
+     The one loud element is the live projector preview; everything around it stays quiet. */
   :root {
-    --bg: #f3f6fb; --surface: #ffffff; --ink: #121a33; --muted: #5d6784; --rule: #dfe5f0;
-    --slide-1: #3b7bea; --slide-2: #2453c4; --kesri: #ec7d14; --kesri-ink: #ffffff;
-    --live: #17975a; --hl: #fff2e4; --hl-ink: #9a4a05;
-    --ok-bg: #dcfce7; --ok-ink: #166534; --mid-bg: #fef3c7; --mid-ink: #92400e; --lo-bg: #fee2e2; --lo-ink: #991b1b;
-    --f-gurbani: "Noto Sans Gurmukhi", "Raavi", "Gurmukhi MN", "Mukta Mahee", sans-serif;
-    --f-ui: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --page: #eef2f9; --surface: #ffffff; --sunk: #f5f7fc; --ink: #101a3a; --muted: #5a6585; --rule: #dde3ef;
+    --blue: #2350c8; --blue-2: #3b7bea; --kesri: #e8781a; --kesri-soft: #fdf0e3; --kesri-ink: #9c4a06; --gold: #c9a24a;
+    --live: #16a05d; --ok: #16a05d; --mid: #d98e0b; --lo: #d6453d;
+    --shadow: 0 1px 2px rgba(16,26,58,.05), 0 12px 32px -14px rgba(16,26,58,.22);
+    --f-ui: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-gur: "Noto Sans Gurmukhi", "Raavi", "Gurmukhi MN", sans-serif;
+    --f-brand: "Baloo Paaji 2", "Noto Sans Gurmukhi", sans-serif;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #0b1122; --surface: #141c33; --ink: #e9edf7; --muted: #98a2bd; --rule: #26304b;
-            --hl: #33240f; --hl-ink: #ffb46b; --ok-bg: #12351f; --ok-ink: #86efac; --mid-bg: #3a2c0b; --mid-ink: #fcd34d;
-            --lo-bg: #3d1414; --lo-ink: #fca5a5; color-scheme: dark; }
+    :root { --page: #0a1022; --surface: #121a33; --sunk: #0e152b; --ink: #e8ecf7; --muted: #95a0bf; --rule: #232d4b;
+            --kesri-soft: #2f2112; --kesri-ink: #ffb067; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -16px rgba(0,0,0,.6); color-scheme: dark; }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
-  body { background: var(--bg); color: var(--ink); font: 16px/1.45 var(--f-ui); -webkit-tap-highlight-color: transparent;
-         padding-bottom: env(safe-area-inset-bottom, 0px); }
-  .g { font-family: var(--f-gurbani); }
-  button { font: inherit; color: inherit; }
+  body { background: var(--page); color: var(--ink); font: 15px/1.5 var(--f-ui); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
   [hidden] { display: none !important; }
-  .wrap { max-width: 1180px; margin: 0 auto;
-          padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+  .g { font-family: var(--f-gur); }
+  :focus-visible { outline: 2.5px solid var(--kesri); outline-offset: 2px; border-radius: 8px; }
 
-  header { position: sticky; top: 0; z-index: 20; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); }
-  .bar { display: flex; align-items: center; gap: 10px; padding-block: 10px; flex-wrap: wrap; }
-  .brand { font-weight: 700; font-size: 17px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; margin-right: auto; }
-  .brand svg { width: 24px; height: 24px; }
-  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; padding: 3px; }
-  .seg button { border: 0; background: none; padding: 7px 12px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
-  .seg button.on { background: var(--kesri); color: var(--kesri-ink); }
+  /* ---------- top bar ---------- */
+  .top { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--page) 88%, transparent);
+         backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px);
+         border-bottom: 1px solid var(--rule); padding-top: env(safe-area-inset-top, 0px); }
+  .top-in { max-width: 1440px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: 6px; text-decoration: none; color: inherit; }
+  .brand svg { width: 30px; height: 30px; flex: none; }
+  .brand b { font-weight: 800; font-size: 17px; letter-spacing: -.02em; display: block; line-height: 1.1; }
+  .brand span { font-family: var(--f-brand); font-weight: 600; font-size: 13px; color: var(--kesri); display: block; line-height: 1; }
 
-  main { display: grid; gap: 14px; padding-bottom: 28px; }
-  @media (min-width: 900px) { main { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; }
-    .side { position: sticky; top: 70px; } }
-  .col { display: grid; gap: 10px; min-width: 0; }
+  .modes { position: relative; display: inline-grid; grid-template-columns: repeat(3, 1fr); background: var(--surface);
+           border: 1px solid var(--rule); border-radius: 12px; padding: 3px; isolation: isolate; }
+  .modes button { border: 0; background: none; padding: 7px 14px; border-radius: 9px; font-weight: 700; font-size: 13.5px; color: var(--muted); white-space: nowrap; }
+  .modes button.on { color: #fff; }
+  .modes .thumb { position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: 9px;
+                  background: var(--kesri); transform: translateX(calc(var(--i, 1) * 100%)); transition: transform .25s cubic-bezier(.3,.7,.2,1); }
 
-  /* the slide, same look as the projector */
-  .slide { position: relative; border-radius: 18px; overflow: hidden; color: #fff; min-height: 300px; isolation: isolate;
-           background: radial-gradient(ellipse at 25% 15%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, var(--slide-1), var(--slide-2));
-           display: flex; flex-direction: column; justify-content: center; text-align: center;
-           padding: 30px 18px 22px; gap: 10px; user-select: none; touch-action: pan-y; }
-  .slide .bgimg, .slide .dim { position: absolute; inset: 0; z-index: -1; }
-  .slide .bgimg { background: center / cover no-repeat; opacity: 0; transition: opacity .5s; }
-  .slide .bgimg.on { opacity: 1; }
-  .slide .dim { background: #000; opacity: 0; }
-  .s-g { font-family: var(--f-gurbani); font-weight: 800; font-size: calc(var(--k, 1) * 27px); line-height: 1.4; text-wrap: balance; text-shadow: 0 1px 6px rgba(0,0,0,.3); }
-  .s-e { font-weight: 600; font-size: calc(var(--k, 1) * 15px); line-height: 1.4; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
-  .s-p { font-family: var(--f-gurbani); font-weight: 500; font-size: calc(var(--k, 1) * 15px); line-height: 1.55; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
-  .s-t { font-weight: 600; font-size: calc(var(--k, 1) * 16px); line-height: 1.35; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
-  .s-n { font-family: var(--f-gurbani); font-weight: 700; opacity: .55; font-size: calc(var(--k, 1) * 15px); }
-  .s-empty { font-size: 15px; max-width: 34ch; margin: 0 auto; }
-  .s-empty b { font-family: var(--f-gurbani); font-size: 24px; display: block; margin-bottom: 6px; }
-  .s-meta { position: absolute; top: 10px; left: 14px; font-size: 12px; opacity: .85; text-align: left; }
-  .fs-btn { position: absolute; top: 8px; right: 8px; border: 0; background: rgba(255,255,255,.18); color: #fff;
-            border-radius: 10px; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; }
-  .fs-btn svg { width: 18px; height: 18px; }
-  .slide.present { position: fixed; inset: 0; z-index: 100; border-radius: 0; min-height: 0; gap: 2vh;
-     padding: max(3vh, env(safe-area-inset-top, 0px)) max(4vw, env(safe-area-inset-right, 0px)) max(3vh, env(safe-area-inset-bottom, 0px)) max(4vw, env(safe-area-inset-left, 0px)); }
-  .slide.present .s-g { font-size: calc(var(--k, 1) * 6.4vmin); }
-  .slide.present .s-e, .slide.present .s-n { font-size: calc(var(--k, 1) * 3.1vmin); }
-  .slide.present .s-p { font-size: calc(var(--k, 1) * 3vmin); }
-  .slide.present .s-t { font-size: calc(var(--k, 1) * 3.4vmin); }
-  .slide.present .s-meta { display: none; }
+  .listen-btn { display: inline-flex; align-items: center; gap: 10px; border: 0; border-radius: 12px; padding: 9px 16px 9px 12px;
+                background: var(--blue); color: #fff; font-weight: 700; font-size: 14px; box-shadow: 0 6px 16px -8px var(--blue); }
+  .listen-btn.live { background: var(--live); box-shadow: 0 6px 16px -8px var(--live); }
+  .bars { display: inline-flex; align-items: center; gap: 2px; height: 18px; width: 22px; }
+  .bars i { width: 3px; border-radius: 2px; background: currentColor; height: 30%; transition: height .08s; }
+  .listen-btn:not(.live) .bars i { height: 30%; }
+  .spacer { flex: 1; }
+  .ghost { border: 1px solid var(--rule); background: var(--surface); border-radius: 12px; padding: 8px 13px; font-weight: 600; font-size: 13.5px; }
+  .ghost:hover { border-color: color-mix(in srgb, var(--kesri) 60%, var(--rule)); }
+  .ghost.on { background: var(--ink); color: var(--page); border-color: var(--ink); }
+  select.ghost { padding-right: 8px; }
+  .pill-status { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .pill-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: .5; }
+  .pill-status.on::before { background: var(--live); opacity: 1; }
 
-  .navrow { display: flex; gap: 8px; }
-  .navrow button { flex: 1; border: 1px solid var(--rule); background: var(--surface); border-radius: 12px; padding: 12px; font-weight: 600; cursor: pointer; }
-  .navrow button:active { transform: scale(.98); }
-  .navrow .on { background: var(--ink); color: var(--bg); }
+  /* ---------- layout ---------- */
+  .layout { max-width: 1440px; margin: 0 auto; display: grid; grid-template-columns: 384px minmax(0, 1fr); gap: 18px; align-items: start;
+            padding: 18px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); }
+  .left { display: grid; gap: 14px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; padding: 16px; min-width: 0; }
+  .card-h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; }
+  .card-h h2 { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .card-h .pa { font-family: var(--f-brand); font-weight: 600; font-size: 14px; color: var(--muted); }
+  .card-h .end { margin-left: auto; }
+  details.card > summary { list-style: none; cursor: pointer; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary .card-h { margin: 0; }
+  details.card[open] > summary .card-h { margin-bottom: 12px; }
+  details.card > summary .chev { margin-left: auto; transition: transform .2s; color: var(--muted); }
+  details.card[open] > summary .chev { transform: rotate(180deg); }
 
-  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; }
-  .listen { padding: 14px; display: grid; gap: 10px; }
-  .listen-top { display: flex; gap: 12px; align-items: center; }
-  .mic { width: 62px; height: 62px; flex: none; border-radius: 50%; border: 0; background: var(--kesri); color: #fff; cursor: pointer;
-         display: grid; place-items: center; box-shadow: 0 6px 18px -6px rgba(236,125,20,.6); }
-  .mic svg { width: 26px; height: 26px; }
-  .mic.live { background: var(--live); animation: pulse 1.8s infinite; }
-  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(23,151,90,.5); } 70% { box-shadow: 0 0 0 14px rgba(23,151,90,0); } 100% { box-shadow: 0 0 0 0 rgba(23,151,90,0); } }
-  @media (prefers-reduced-motion: reduce) { .mic.live { animation: none; } }
-  .status { min-width: 0; flex: 1; }
-  .status b { display: flex; align-items: center; gap: 8px; font-size: 15px; flex-wrap: wrap; }
-  .status small { color: var(--muted); font-size: 13px; }
-  .sure { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-  .sure.hi { background: var(--ok-bg); color: var(--ok-ink); } .sure.mid { background: var(--mid-bg); color: var(--mid-ink); } .sure.lo { background: var(--lo-bg); color: var(--lo-ink); }
-  .heard { font-family: var(--f-gurbani); font-size: 17px; color: var(--muted); min-height: 1.5em; overflow-wrap: anywhere; }
+  /* listening */
+  .heard { font-family: var(--f-gur); font-size: 17px; line-height: 1.6; color: var(--muted); min-height: 3.2em; overflow-wrap: anywhere; }
   .heard em { font-style: normal; color: var(--ink); font-weight: 700; }
-  .warn { background: var(--hl); color: var(--hl-ink); border-radius: 10px; padding: 9px 11px; font-size: 14px; }
-  .sugg { display: grid; gap: 8px; }
-  .sugg button { text-align: left; border: 1.5px dashed var(--kesri); background: var(--hl); border-radius: 12px; padding: 9px 11px; cursor: pointer; }
-  .sugg small { color: var(--hl-ink); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-  .sugg .g { display: block; font-weight: 700; font-size: 17px; }
-  .meter { height: 4px; background: var(--rule); border-radius: 4px; margin-top: 6px; overflow: hidden; }
-  .meter i { display: block; height: 100%; background: var(--kesri); }
+  .heard .idle { font-family: var(--f-ui); font-size: 14px; }
+  .listen-meta { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .ring { --p: 0; --c: var(--muted); width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center;
+          background: conic-gradient(var(--c) calc(var(--p) * 1%), var(--rule) 0); }
+  .ring span { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); display: grid; place-items: center;
+               font-size: 10.5px; letter-spacing: -.02em; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .listen-meta p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .listen-meta p b { color: var(--ink); font-weight: 700; }
+  .warn { margin-top: 10px; background: var(--kesri-soft); color: var(--kesri-ink); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
+  .sugg { display: grid; gap: 8px; margin-top: 10px; }
+  .sugg button { text-align: left; border: 1.5px dashed color-mix(in srgb, var(--kesri) 70%, transparent); background: var(--kesri-soft);
+                 border-radius: 12px; padding: 9px 12px; }
+  .sugg small { color: var(--kesri-ink); font-weight: 700; font-size: 12px; }
+  .sugg .g { display: block; font-weight: 700; font-size: 16px; line-height: 1.45; }
+  .meter { height: 4px; background: color-mix(in srgb, var(--kesri) 18%, transparent); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--kesri); border-radius: 4px; }
 
-  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--rule); }
-  .tabs button { border: 0; background: none; padding: 12px 4px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; }
-  .tabs button.on { color: var(--ink); border-bottom-color: var(--kesri); }
-  .tab { padding: 12px; }
-  .tab-head { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-  .now { border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--hl); display: grid; gap: 4px; }
-  .now .g { font-size: 19px; font-weight: 700; }
-  .now .en { font-size: 14px; } .now .pa { font-family: var(--f-gurbani); font-size: 14px; color: var(--muted); } .now .tl { font-size: 13px; color: var(--muted); font-style: italic; }
-  .lines { display: grid; gap: 2px; max-height: 58vh; overflow: auto; overscroll-behavior: contain; }
-  .ln { text-align: left; border: 0; background: none; padding: 10px; border-radius: 10px; font-family: var(--f-gurbani); font-size: 18px; font-weight: 600; cursor: pointer; }
-  .ln.head { font-size: 14px; color: var(--muted); font-weight: 500; }
-  .ln.cur { background: var(--slide-2); color: #fff; }
-  .ln .tag { font-size: 11px; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: var(--hl); color: var(--hl-ink); vertical-align: middle; font-family: var(--f-ui); }
-  .ln .tr { display: block; font: 500 13px/1.45 var(--f-ui); color: var(--muted); margin-top: 3px; }
-  .ln .tr.pa { font-family: var(--f-gurbani); }
-  .ln.cur .tr { color: rgba(255,255,255,.88); }
-  .lines:not(.withtr) .ln .tr { display: none; }
-  .empty { color: var(--muted); padding: 22px 8px; text-align: center; font-size: 15px; }
-  input[type=search], textarea { width: 100%; border: 1px solid var(--rule); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 12px; font: 16px var(--f-ui); }
-  textarea { font-family: var(--f-gurbani); margin-top: 8px; }
-  .hint { color: var(--muted); font-size: 13px; margin: 6px 2px 4px; }
-  .res { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px; border-radius: 10px; cursor: pointer; border-bottom: 1px solid var(--rule); }
-  .res .g { font-size: 18px; font-weight: 700; display: block; }
-  .res small { color: var(--muted); }
-  .banis { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-  .banis button { text-align: left; border: 1px solid var(--rule); background: var(--bg); border-radius: 12px; padding: 10px; cursor: pointer; }
-  .banis .g { display: block; font-weight: 700; } .banis small { color: var(--muted); }
-  .set { display: grid; gap: 14px; }
-  .set h3 { margin: 6px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-  .set label.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .set input[type=range] { width: 50%; }
-  select { border: 1px solid var(--rule); background: var(--bg); color: var(--ink); border-radius: 10px; padding: 8px; font: 15px var(--f-ui); max-width: 60%; }
+  /* find shabad */
+  .search { position: relative; }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); pointer-events: none; }
+  input[type=search] { width: 100%; border: 1px solid var(--rule); background: var(--sunk); border-radius: 12px; padding: 11px 12px 11px 38px; font-size: 15px; }
+  input[type=search]:focus { outline: none; border-color: var(--kesri); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in srgb, var(--kesri) 18%, transparent); }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 7px 2px 0; }
+  .results { max-height: 340px; overflow: auto; margin-top: 8px; overscroll-behavior: contain; }
+  .res { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 9px 10px; border-radius: 10px; }
+  .res:hover { background: var(--sunk); }
+  .res .g { display: block; font-weight: 700; font-size: 16.5px; line-height: 1.45; }
+  .res small { color: var(--muted); font-size: 12.5px; }
+  .banis { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .banis button { border: 1px solid var(--rule); background: var(--sunk); border-radius: 999px; padding: 5px 12px 6px; font-family: var(--f-gur); font-weight: 700; font-size: 14px; }
+  .banis button:hover { border-color: var(--kesri); background: var(--kesri-soft); }
+  .banis:not(.all) button.extra { display: none; }
+  .banis .more { font-family: var(--f-ui); font-weight: 700; font-size: 13px; background: none; border-style: dashed; color: var(--muted); }
+
+  /* toggles and sliders */
+  .opts { display: grid; gap: 2px; }
+  .sw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .sw input { appearance: none; -webkit-appearance: none; width: 38px; height: 22px; border-radius: 999px; background: var(--rule); position: relative; margin: 0; flex: none; cursor: pointer; transition: background .2s; }
+  .sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s; }
+  .sw input:checked { background: var(--blue); }
+  .sw input:checked::after { transform: translateX(16px); }
+  .range { display: grid; gap: 6px; padding: 8px 0 4px; font-size: 14px; font-weight: 500; }
+  .range > span { display: flex; justify-content: space-between; }
+  .range > span b { font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--blue); }
+  .row-sel { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; font-weight: 500; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+
+  /* backgrounds */
   .bgs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .bgs button { aspect-ratio: 16 / 9; border: 2px solid transparent; border-radius: 8px; background: center / cover no-repeat var(--bg); cursor: pointer; padding: 0; font-size: 11px; color: var(--muted); }
-  .bgs button.on { border-color: var(--kesri); box-shadow: 0 0 0 2px var(--kesri); }
-  .bgs button.plain { border-color: var(--rule); }
-  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn { border: 1px solid var(--rule); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-weight: 600; cursor: pointer; font-size: 14px; }
-  .note { color: var(--muted); font-size: 13px; }
-  details summary { cursor: pointer; color: var(--muted); }
-  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--kesri); outline-offset: 2px; }
+  .bgs button { aspect-ratio: 16 / 9; border: 0; border-radius: 9px; background: center / cover no-repeat var(--sunk); padding: 0;
+                box-shadow: inset 0 0 0 1px var(--rule); font-size: 11px; font-weight: 700; color: var(--muted); transition: transform .12s; }
+  .bgs button:hover { transform: scale(1.04); }
+  .bgs button.on { box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 4.5px var(--kesri); }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  textarea { width: 100%; border: 1px solid var(--rule); background: var(--sunk); border-radius: 12px; padding: 10px; font: 15px var(--f-gur); }
 
-  #loading { position: fixed; inset: 0; z-index: 200; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 24px; }
-  #loading .g { font-size: 30px; font-weight: 800; }
-  .prog { width: min(280px, 70vw); height: 6px; border-radius: 6px; background: var(--rule); margin: 16px auto 8px; overflow: hidden; }
-  .prog i { display: block; height: 100%; width: 0; background: var(--kesri); transition: width .2s; }
-  #loading small { color: var(--muted); }
-  #toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg);
-           padding: 10px 14px; border-radius: 12px; font-size: 14px; z-index: 300; max-width: calc(100% - 32px); }
+  /* ---------- On screen ---------- */
+  .stage-card { position: sticky; top: 76px; background: var(--surface); border: 1px solid var(--rule); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; min-width: 0;
+                display: flex; flex-direction: column; max-height: calc(100vh - 94px); }
+  .show-sm-only { display: none; }
+  .stage-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px; flex-wrap: wrap; }
+  .stage-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
+  .stage-head .src { font-size: 12.5px; color: var(--muted); min-width: 0; }
+  .stage-head .src b { color: var(--ink); font-weight: 700; }
+
+  /* the projector preview: exact same look as the projector, scaled with the box */
+  .proj { position: relative; margin: 0 auto; width: min(calc(100% - 32px), calc((100vh - 94px) * .52 * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; color: #fff; container-type: inline-size; isolation: isolate;
+          background: radial-gradient(ellipse at 28% 18%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, var(--blue-2), var(--blue));
+          box-shadow: 0 0 0 1px rgba(16,26,58,.08), 0 18px 40px -22px rgba(35,80,200,.7); user-select: none; }
+  .proj .bgimg, .proj .dim { position: absolute; inset: 0; z-index: -1; }
+  .proj .bgimg { background: center / cover no-repeat; opacity: 0; transition: opacity .45s; }
+  .proj .bgimg.on { opacity: 1; }
+  .proj .dim { background: #000; opacity: 0; }
+  .proj .txt { position: absolute; inset: 5% 5%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 1.6cqw; }
+  .p-g { font-family: var(--f-gur); font-weight: 800; font-size: calc(var(--k, 1) * 4.1cqw); line-height: 1.35; text-wrap: balance; text-shadow: 0 .2cqw .8cqw rgba(0,0,0,.35); }
+  .p-e { font-weight: 600; font-size: calc(var(--k, 1) * 2cqw); line-height: 1.38; }
+  .p-p { font-family: var(--f-gur); font-weight: 500; font-size: calc(var(--k, 1) * 1.95cqw); line-height: 1.5; }
+  .p-t { font-weight: 600; font-size: calc(var(--k, 1) * 2.25cqw); line-height: 1.32; }
+  .p-n { font-family: var(--f-gur); font-weight: 700; opacity: .55; font-size: calc(var(--k, 1) * 2cqw); }
+  .p-e, .p-p, .p-t, .p-n { text-shadow: 0 .15cqw .8cqw rgba(0,0,0,.5); }
+  .p-empty { font-size: 2.3cqw; max-width: 46ch; opacity: .92; }
+  .p-empty b { display: block; font-family: var(--f-brand); font-weight: 800; font-size: 6cqw; line-height: 1.1; margin-bottom: 1cqw; }
+  .proj .fs { position: absolute; top: 2.2cqw; right: 2.2cqw; width: 36px; height: 36px; border: 0; border-radius: 10px; background: rgba(255,255,255,.18);
+              color: #fff; display: grid; place-items: center; backdrop-filter: blur(6px); }
+  .proj .fs svg { width: 17px; height: 17px; }
+  .proj .tag { position: absolute; top: 2.4cqw; left: 2.6cqw; font-size: 12px; font-weight: 700; background: rgba(0,0,0,.28); padding: 3px 9px; border-radius: 999px; backdrop-filter: blur(6px); }
+  .proj:fullscreen, .proj.present { margin: 0; border-radius: 0; aspect-ratio: auto; width: 100vw; height: 100vh; box-shadow: none; container-type: size; }
+  .proj.present { position: fixed; inset: 0; z-index: 100; }
+  .proj:fullscreen .p-g, .proj.present .p-g { font-size: calc(var(--k, 1) * 6.2cqmin); }
+  .proj:fullscreen .p-e, .proj.present .p-e, .proj:fullscreen .p-n, .proj.present .p-n { font-size: calc(var(--k, 1) * 3cqmin); }
+  .proj:fullscreen .p-p, .proj.present .p-p { font-size: calc(var(--k, 1) * 2.9cqmin); }
+  .proj:fullscreen .p-t, .proj.present .p-t { font-size: calc(var(--k, 1) * 3.4cqmin); }
+  .proj:fullscreen .tag, .proj.present .tag { display: none; }
+
+  .controls { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 12px 16px; }
+  .controls button { border: 1px solid var(--rule); background: var(--sunk); border-radius: 12px; padding: 10px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .controls button:active { transform: scale(.98); }
+  .controls button.on { background: var(--ink); color: var(--page); border-color: var(--ink); }
+  .controls svg { width: 16px; height: 16px; }
+  .lines-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 16px 8px; border-top: 1px solid var(--rule); padding-top: 12px; }
+  .lines-bar .sw { padding: 0; font-size: 13px; color: var(--muted); gap: 8px; }
+  .proj, .controls, .lines-bar, .stage-head { flex: none; }
+  .lines { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px); mask-image: linear-gradient(to bottom, transparent 0, #000 22px);
+           padding: 6px 10px 14px; display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-height: 180px; overflow: auto; overscroll-behavior: contain; }
+  .ln { display: grid; grid-template-columns: 30px 1fr; gap: 6px; text-align: left; border: 0; background: none; padding: 9px 8px; border-radius: 12px; }
+  .ln:hover { background: var(--sunk); }
+  .ln .no { font-size: 11.5px; font-weight: 700; color: var(--muted); padding-top: 6px; text-align: right; font-variant-numeric: tabular-nums; }
+  .ln .tx { font-family: var(--f-gur); font-size: 18.5px; font-weight: 600; line-height: 1.5; min-width: 0; }
+  .ln.head .tx { font-size: 14.5px; color: var(--muted); font-weight: 500; }
+  .ln .rh { display: inline-block; font: 700 11px var(--f-gur); margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--kesri-soft); color: var(--kesri-ink); vertical-align: 3px; }
+  .ln .tr { display: block; font: 500 13px/1.5 var(--f-ui); color: var(--muted); margin-top: 2px; }
+  .ln .tr.pa { font-family: var(--f-gur); }
+  .lines:not(.withtr) .ln:not(.cur) .tr { display: none; }
+  .ln.cur { background: var(--blue); color: #fff; box-shadow: 0 10px 22px -14px var(--blue); }
+  .ln.cur .no, .ln.cur .tr, .ln.cur.head .tx { color: rgba(255,255,255,.82); }
+  .ln.cur .rh { background: rgba(255,255,255,.2); color: #fff; }
+  .empty { padding: 34px 20px; text-align: center; color: var(--muted); }
+  .empty b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 4px; }
+
+  /* phone: On screen first, a thumb dock at the bottom */
+  .dock { display: none; }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+    .stage-card { position: static; order: -1; max-height: none; }
+    .proj { width: calc(100% - 32px); }
+    .lines { max-height: 56vh; flex: none; }
+    .show-sm-only { display: flex; }
+    .controls { grid-template-columns: 1fr 1fr; }
+    .controls #prev, .controls #next { display: none; }
+    .controls .fsbtn { display: inline-flex; }
+    .top .listen-btn, .top .hide-sm { display: none; }
+    .dock { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+            padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+            background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--rule); }
+    .dock .nav { border: 1px solid var(--rule); background: var(--sunk); border-radius: 14px; padding: 13px; font-weight: 700; }
+    .dock .mic { width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--blue); color: #fff; display: grid; place-items: center; box-shadow: 0 10px 22px -10px var(--blue); }
+    .dock .mic.live { background: var(--live); box-shadow: 0 0 0 0 rgba(22,160,93,.5); animation: pulse 1.8s infinite; }
+    .dock .mic svg { width: 26px; height: 26px; }
+  }
+  @media (max-width: 520px) {
+    .top-in { gap: 10px; }
+    .brand { margin-right: auto; }
+    .modes button { padding: 7px 11px; }
+    .proj { width: calc(100% - 24px); }
+    .p-g { font-size: calc(var(--k, 1) * 5.6cqw); }
+    .p-e, .p-p, .p-n { font-size: calc(var(--k, 1) * 2.7cqw); }
+    .p-t { font-size: calc(var(--k, 1) * 2.9cqw); }
+  }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 16px rgba(22,160,93,0); } 100% { box-shadow: 0 0 0 0 rgba(22,160,93,0); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  /* loading + toast */
+  #loading { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; text-align: center; padding: 24px;
+             background: radial-gradient(ellipse at 50% 30%, #2a56c9 0%, #101a3a 70%); color: #fff; transition: opacity .35s; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #loading .om { font-family: var(--f-brand); font-weight: 800; font-size: 34px; letter-spacing: .01em; }
+  #loading .prog { width: min(260px, 70vw); height: 4px; border-radius: 4px; background: rgba(255,255,255,.2); margin: 18px auto 10px; overflow: hidden; }
+  #loading .prog i { display: block; height: 100%; width: 0; background: var(--kesri); transition: width .2s; }
+  #loading small { opacity: .75; font-size: 13px; }
+  #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--page);
+           padding: 11px 16px; border-radius: 14px; font-size: 14px; font-weight: 600; z-index: 300; max-width: calc(100% - 32px); box-shadow: var(--shadow); }
+  @media (max-width: 960px) { #toast { bottom: calc(100px + env(safe-area-inset-bottom, 0px)); } }
 </style>
 </head>
 <body>
 <div id="loading">
   <div>
-    <div class="g">ੴ ਸਤਿਗੁਰ ਪ੍ਰਸਾਦਿ</div>
+    <div class="om">ੴ ਸਤਿਗੁਰ ਪ੍ਰਸਾਦਿ</div>
     <div class="prog"><i id="progbar"></i></div>
     <small id="progtext">Loading Gurbani...</small>
   </div>
 </div>
 
-<header>
-  <div class="wrap bar">
-    <div class="brand">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="6.5" fill="none" stroke="var(--kesri)" stroke-width="2"/><path d="M12 2v20" stroke="var(--kesri)" stroke-width="2.4" stroke-linecap="round"/></svg>
-      Kirtan Follow
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="./" aria-label="Kirtan Follow">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#2350c8"/><circle cx="16" cy="17.5" r="6.8" fill="none" stroke="#e8781a" stroke-width="2.2"/><path d="M16 4.5l1.4 3-.4 17h-2l-.4-17z" fill="#fff"/><rect x="13" y="24" width="6" height="1.6" rx=".8" fill="#fff"/></svg>
+      <div><b>Kirtan Follow</b><span>ਕੀਰਤਨ</span></div>
+    </a>
+    <div class="modes" id="modes" role="radiogroup" aria-label="Mode">
+      <i class="thumb" aria-hidden="true"></i>
+      <button data-m="auto" role="radio">Full Auto</button>
+      <button data-m="semi" role="radio">Semi Auto</button>
+      <button data-m="manual" role="radio">Manual</button>
     </div>
-    <div class="seg" id="modes" aria-label="Mode">
-      <button data-m="auto">Full Auto</button>
-      <button data-m="semi">Semi</button>
-      <button data-m="manual">Manual</button>
-    </div>
+    <button class="listen-btn" id="listen"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="listen-t">Start listening</span></button>
+    <select class="ghost hide-sm" id="o-lang" aria-label="Speech recognizer">
+      <option value="pa-IN">Punjabi recognizer</option>
+      <option value="pa-Guru-IN">Punjabi (alt code)</option>
+      <option value="hi-IN">Hindi recognizer</option>
+    </select>
+    <div class="spacer"></div>
+    <span class="pill-status hide-sm" id="screens">No projector window</span>
+    <button class="ghost hide-sm" id="openproj">Open projector screen</button>
+    <button class="ghost hide-sm" id="blank-top">Blank screen</button>
   </div>
 </header>
 
-<div class="wrap">
-<main>
-  <div class="col">
-    <section class="slide" id="slide" aria-live="polite">
-      <div class="bgimg" id="bgimg"></div><div class="dim" id="dim"></div>
-      <div class="s-meta" id="smeta"></div>
-      <button class="fs-btn" id="fs" aria-label="Full screen">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-      </button>
-      <div class="s-g" id="sg"></div>
-      <div class="s-e" id="se"></div>
-      <div class="s-p" id="sp"></div>
-      <div class="s-t" id="st"></div>
-      <div class="s-n" id="sn" hidden></div>
-      <div class="s-empty" id="sempty"><b>ਵਾਹਿਗੁਰੂ</b>Tap the mic. Full Auto finds the shabad by itself, or search for it below.</div>
-    </section>
-    <div class="navrow">
-      <button id="prev" aria-label="Previous line">‹ Prev</button>
-      <button id="blank">Blank</button>
-      <button id="next" aria-label="Next line">Next ›</button>
-    </div>
-  </div>
-
-  <div class="side col">
-    <section class="card listen">
-      <div class="listen-top">
-        <button class="mic" id="mic" aria-label="Start listening">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-        </button>
-        <div class="status"><b><span id="stat1">Not listening</span><span class="sure" id="sure" hidden></span></b><small id="stat2"></small></div>
+<main class="layout">
+  <!-- left: the laptop app's tools, top to bottom -->
+  <div class="left">
+    <section class="card" aria-labelledby="h-listen">
+      <div class="card-h"><h2 id="h-listen">Listening</h2><span class="pa">ਸੁਣ ਰਹੇ ਹਾਂ</span></div>
+      <div class="heard" id="heard"><span class="idle">Not listening yet. Press Start listening and allow the microphone.</span></div>
+      <div class="listen-meta">
+        <div class="ring" id="ring" title="How sure it is about the line on screen"><span id="ring-t">–</span></div>
+        <p id="mode-note"></p>
       </div>
-      <div class="heard" id="heard"></div>
       <div class="warn" id="warn" hidden></div>
       <div class="sugg" id="sugg"></div>
     </section>
 
-    <section class="card">
-      <div class="tabs">
-        <button data-t="shabad" class="on">Shabad</button>
-        <button data-t="search">Search</button>
-        <button data-t="banis">Banis</button>
-        <button data-t="settings">Settings</button>
+    <section class="card" aria-labelledby="h-find">
+      <div class="card-h"><h2 id="h-find">Find shabad</h2><span class="pa">ਸ਼ਬਦ ਲੱਭੋ</span></div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" id="q" placeholder="ਕਨਸਰ, knsr, words, or Ang number" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search Gurbani">
       </div>
-      <div class="tab" id="t-shabad">
-        <div class="tab-head" id="title"></div>
-        <div class="now" id="now" hidden>
-          <div class="g" id="now-g"></div><div class="en" id="now-en"></div><div class="pa" id="now-pa"></div><div class="tl" id="now-tl"></div>
-        </div>
-        <label class="note" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" id="o-alltr"> Translations under every line</label>
-        <div class="lines" id="lines"><div class="empty">No shabad yet.</div></div>
-      </div>
-      <div class="tab" id="t-search" hidden>
-        <input type="search" id="q" placeholder="ਕਨਸਰ, knsr, ਸੰਤਨ ਰਸ, or Ang 1302" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <div class="hint">First letters (Gurmukhi or STTM keyboard), Gurmukhi words, or an Ang number.</div>
-        <div id="results"></div>
-      </div>
-      <div class="tab" id="t-banis" hidden><div class="banis" id="banis"></div></div>
-      <div class="tab" id="t-settings" hidden>
-        <div class="set">
-          <h3>Projector</h3>
-          <div class="btnrow">
-            <button class="btn" id="openproj">Open projector screen</button>
-          </div>
-          <div class="note">On a laptop: opens a second window. Drag it onto the projector and press F. It follows this page instantly.</div>
+      <div class="hint">First letters in Gurmukhi or STTM keys, a few words, or an Ang.</div>
+      <div class="results" id="results"></div>
+      <div class="banis" id="banis" aria-label="Banis"></div>
+    </section>
 
-          <h3>Slide</h3>
-          <label class="row">English <input type="checkbox" id="o-english"></label>
-          <label class="row">Punjabi teeka <input type="checkbox" id="o-punjabi"></label>
-          <label class="row">Transliteration <input type="checkbox" id="o-translit"></label>
-          <label class="row">Next line preview <input type="checkbox" id="o-next"></label>
-          <label class="row">Text size <input type="range" id="o-size" min="70" max="140" step="5"></label>
-
-          <h3>Background</h3>
-          <div class="bgs" id="bgs"></div>
-          <label class="row">Darken <input type="range" id="o-dim" min="0" max="80" step="5"></label>
-          <div class="btnrow">
-            <label class="btn" for="bgfile">Add your own photo</label>
-            <input type="file" id="bgfile" accept="image/*" hidden>
-          </div>
-          <div class="note" id="bgcredit"></div>
-
-          <h3>Listening</h3>
-          <label class="row">Switch lines when <span><b id="sure-v">70</b>% sure</span></label>
-          <input type="range" id="o-sure" min="50" max="95" step="5" style="width:100%">
-          <label class="row">Recognizer
-            <select id="o-lang">
-              <option value="pa-IN">Punjabi</option>
-              <option value="pa-Guru-IN">Punjabi (alt)</option>
-              <option value="hi-IN">Hindi (try on iPhone)</option>
-            </select>
-          </label>
-
-          <h3>Offline</h3>
-          <div class="btnrow"><button class="btn" id="warm">Save all Gurbani on this device</button></div>
-          <div class="note" id="warmnote">Keeps every shabad and bani working even if the wifi drops. About 15 MB.</div>
-
-          <details>
-            <summary>Test without ragis</summary>
-            <textarea id="testtext" rows="3" placeholder="ਕਹੁ ਨਾਨਕ ਸੰਤਨ ਰਸੁ ਆਈ ਹੈ ਜਿਉ ਚਾਖਿ ਗੂੰਗਾ ਮੁਸਕਾਰੈ"></textarea>
-            <div style="margin-top:8px"><button class="btn" id="testsend">Send as if heard</button></div>
-          </details>
-        </div>
+    <section class="card" aria-labelledby="h-screen">
+      <div class="card-h"><h2 id="h-screen">Screen</h2><span class="pa">ਸਕਰੀਨ</span></div>
+      <div class="opts">
+        <label class="sw">English translation <input type="checkbox" id="o-english"></label>
+        <label class="sw">Punjabi teeka <input type="checkbox" id="o-punjabi"></label>
+        <label class="sw">Transliteration <input type="checkbox" id="o-translit"></label>
+        <label class="sw">Next line preview <input type="checkbox" id="o-next"></label>
+        <div class="range"><span>Text size <b id="size-v">100%</b></span><input type="range" id="o-size" min="70" max="140" step="5" aria-label="Text size"></div>
+        <div class="range"><span>Switch lines when this sure <b id="sure-v">70%</b></span><input type="range" id="o-sure" min="50" max="95" step="5" aria-label="Switch lines when this sure"></div>
       </div>
     </section>
+
+    <section class="card" aria-labelledby="h-bg">
+      <div class="card-h"><h2 id="h-bg">Projector background</h2></div>
+      <div class="bgs" id="bgs"></div>
+      <div class="range"><span>Darken <b id="dim-v">0%</b></span><input type="range" id="o-dim" min="0" max="80" step="5" aria-label="Darken background"></div>
+      <div class="btnrow">
+        <label class="ghost" for="bgfile">Add your own photo</label>
+        <input type="file" id="bgfile" accept="image/*" hidden>
+      </div>
+      <p class="note" id="bgcredit"></p>
+    </section>
+
+    <details class="card">
+      <summary><div class="card-h"><h2>More</h2><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div></summary>
+      <div class="row-sel show-sm-only">Recognizer
+        <select class="ghost" id="o-lang2" aria-label="Speech recognizer">
+          <option value="pa-IN">Punjabi</option>
+          <option value="pa-Guru-IN">Punjabi (alt)</option>
+          <option value="hi-IN">Hindi</option>
+        </select>
+      </div>
+      <div class="btnrow"><button class="ghost" id="warm">Save all Gurbani on this device</button></div>
+      <p class="note" id="warmnote">Keeps every shabad and bani working if the wifi drops. About 15 MB.</p>
+      <p class="note" style="margin-top:14px">Test without ragis: paste a few lines, mistakes are fine.</p>
+      <textarea id="testtext" rows="3" placeholder="ਕਹੁ ਨਾਨਕ ਸੰਤਨ ਰਸੁ ਆਈ ਹੈ ਜਿਉ ਚਾਖਿ ਗੂੰਗਾ ਮੁਸਕਾਰੈ"></textarea>
+      <div class="btnrow"><button class="ghost" id="testsend">Send as if heard</button></div>
+    </details>
   </div>
+
+  <!-- right: what's on the projector, and every line of the shabad -->
+  <section class="stage-card" aria-labelledby="h-stage">
+    <div class="stage-head">
+      <h2 id="h-stage">On screen</h2>
+      <div class="src" id="src"></div>
+    </div>
+    <div class="proj" id="proj" aria-live="polite">
+      <div class="bgimg" id="bgimg"></div><div class="dim" id="dim"></div>
+      <span class="tag" id="ptag" hidden></span>
+      <button class="fs" id="fs" aria-label="Full screen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <div class="txt" id="ptxt">
+        <div class="p-g" id="pg"></div>
+        <div class="p-e" id="pe"></div>
+        <div class="p-p" id="pp"></div>
+        <div class="p-t" id="pt"></div>
+        <div class="p-n" id="pn" hidden></div>
+        <div class="p-empty" id="pempty"><b>ਵਾਹਿਗੁਰੂ</b>Start listening. Full Auto finds the shabad by itself, or search for it on the left.</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="prev" aria-label="Previous line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>Prev</button>
+      <button id="blank">Blank</button>
+      <button id="next" aria-label="Next line">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button id="clear" class="fsbtn">Clear</button>
+    </div>
+    <div class="lines-bar">
+      <label class="sw">Translations under every line <input type="checkbox" id="o-alltr"></label>
+    </div>
+    <div class="lines" id="lines"></div>
+  </section>
 </main>
-</div>
+
+<nav class="dock" aria-label="Quick controls">
+  <button class="nav" id="d-prev">‹ Prev</button>
+  <button class="mic" id="d-mic" aria-label="Start listening"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+  <button class="nav" id="d-next">Next ›</button>
+</nav>
 <div id="toast" hidden></div>
 
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-let DATA = "data/";
 const store = {
   get(k, d) { try { const v = localStorage.getItem("kf." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("kf." + k, JSON.stringify(v)); } catch (e) {} },
@@ -303,12 +408,12 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platfor
 const opts = Object.assign({ english: true, punjabi: true, translit: true, next: false, size: 100, lang: isIOS ? "hi-IN" : "pa-IN",
   sure: 70, bg: "art/01-sttm-blue.jpg", dim: 0, alltr: false, mode: "semi" }, store.get("opts", {}));
 const saveOpts = () => store.set("opts", opts);
+let DATA = "data/";
+let S = { mode: opts.mode, lines: [], current: null, kind: null, meta: {}, blank: false, suggestions: [], heard: "", confidence: null, finderReady: false };
+let ready = false;
+function toast(msg, ms = 2800) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms); }
 
-let S = { mode: opts.mode, lines: [], current: null, kind: null, meta: {}, blank: false, suggestions: [], heard: "", confidence: null };
-let ready = false, banis = [], sources = [];
-function toast(msg, ms = 2600) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms); }
-
-// ---------- worker ----------
+// ---------- matching runs in a worker so the page never stutters ----------
 const W = new Worker("worker.js?v=__BUILD__");
 const send = m => W.postMessage(m);
 let searchId = 0;
@@ -317,7 +422,7 @@ W.onmessage = ({ data: m }) => {
     $("progbar").style.width = m.total ? `${Math.min(100, m.got / m.total * 100)}%` : `${Math.min(95, m.got / 7e6 * 100)}%`;
     $("progtext").textContent = `Loading Gurbani... ${(m.got / 1e6).toFixed(1)} MB`;
   } else if (m.t === "ready") {
-    banis = m.banis; sources = m.sources; ready = true; renderBanis(); $("loading").hidden = true;
+    ready = true; renderBanis(m.banis); $("loading").classList.add("done"); setTimeout(() => $("loading").hidden = true, 400);
   } else if (m.t === "state") {
     const lines = m.lines || S.lines;
     S = Object.assign(S, m, { lines });
@@ -325,7 +430,7 @@ W.onmessage = ({ data: m }) => {
   } else if (m.t === "search") {
     if (m.id === searchId) renderResults(m.rows);
   } else if (m.t === "finder") {
-    renderStatus();
+    S.finderReady = true; renderListen();
   } else if (m.t === "warm") {
     $("warmnote").textContent = m.done >= m.total ? "Saved. Everything works on this device even if the wifi drops." : `Saving... ${Math.round(m.done / m.total * 100)}%`;
   } else if (m.t === "error") {
@@ -335,16 +440,15 @@ W.onmessage = ({ data: m }) => {
 };
 W.onerror = e => { console.error(e); if (!ready) $("progtext").textContent = "Something went wrong loading. Reload the page."; };
 (async () => {
-  // which copy of the Gurbani data to use (the service worker keeps it across app updates)
   try { const c = await (await fetch("data/current.json", { cache: "no-cache" })).json(); DATA = `data/${c.v}/`; }
   catch (e) { DATA = store.get("dataDir", "data/"); }
   store.set("dataDir", DATA);
   send({ t: "init", base: new URL(DATA, location.href).href, mode: opts.mode, sure: opts.sure });
 })();
 
-// ---------- projector window (same device) ----------
+// ---------- projector window on the same device ----------
 const bc = "BroadcastChannel" in self ? new BroadcastChannel("kirtan-follow") : null;
-let curBgBlob = null, curBgUrl = null, curCredit = "";
+let curBgBlob = null, curBgUrl = null, curCredit = "", projSeen = 0;
 function slideMsg() {
   const line = currentLine();
   const nx = line && opts.next && S.lines[S.current + 1];
@@ -352,159 +456,178 @@ function slideMsg() {
     next: nx ? nx.gurmukhi : null, opts: { english: opts.english, punjabi: opts.punjabi, translit: opts.translit, size: opts.size, dim: opts.dim },
     bg: curBgBlob ? { blob: curBgBlob } : (curBgUrl ? { url: new URL(curBgUrl, location.href).href } : null), credit: curCredit };
 }
-if (bc) bc.onmessage = ({ data }) => { if (data && data.t === "hello") bc.postMessage(slideMsg()); };
+if (bc) bc.onmessage = ({ data }) => {
+  if (!data) return;
+  if (data.t === "hello" || data.t === "alive") { const was = Date.now() - projSeen < 4000; projSeen = Date.now(); if (!was) renderScreens(); }
+  if (data.t === "hello") bc.postMessage(slideMsg());
+};
 const pushSlide = () => { if (bc) bc.postMessage(slideMsg()); };
-
-// ---------- render ----------
-function currentLine() { return S.blank || S.current == null ? null : S.lines[S.current]; }
-function render(newLines) {
-  document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === S.mode));
-  const line = currentLine();
-  const slide = $("slide");
-  slide.style.setProperty("--k", opts.size / 100);
-  $("sempty").hidden = !!line || S.blank;
-  $("sg").textContent = line ? line.gurmukhi : "";
-  $("se").textContent = line && opts.english ? line.english : "";
-  $("sp").textContent = line && opts.punjabi ? line.punjabi : "";
-  $("st").textContent = line && opts.translit ? line.translit : "";
-  for (const id of ["se", "sp", "st"]) $(id).hidden = !$(id).textContent;
-  const nx = line && opts.next && S.lines[S.current + 1];
-  $("sn").textContent = nx ? nx.gurmukhi : ""; $("sn").hidden = !nx;
-  $("smeta").textContent = !line ? "" : S.kind === "bani" ? S.meta.name : (S.meta.source === "Sri Guru Granth Sahib Ji" ? "Ang " : S.meta.pageLabel + " ") + line.page;
-  fitPresent();
-  pushSlide();
-  $("blank").classList.toggle("on", S.blank); $("blank").textContent = S.blank ? "Show" : "Blank";
-  renderLines(newLines);
-  renderListen();
+function renderScreens() {
+  const on = Date.now() - projSeen < 4000;
+  $("screens").textContent = on ? "Projector window open" : "No projector window";
+  $("screens").classList.toggle("on", on);
 }
 
+// ---------- render ----------
+const currentLine = () => S.blank || S.current == null ? null : S.lines[S.current];
+function render(newLines) {
+  const mi = { auto: 0, semi: 1, manual: 2 }[S.mode];
+  $("modes").style.setProperty("--i", mi);
+  document.querySelectorAll("#modes button").forEach(b => { const on = b.dataset.m === S.mode; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  const line = currentLine();
+  $("proj").style.setProperty("--k", opts.size / 100);
+  $("pempty").hidden = !!line || S.blank;
+  $("pg").textContent = line ? line.gurmukhi : "";
+  $("pe").textContent = line && opts.english ? line.english : "";
+  $("pp").textContent = line && opts.punjabi ? line.punjabi : "";
+  $("pt").textContent = line && opts.translit ? line.translit : "";
+  for (const id of ["pe", "pp", "pt"]) $(id).hidden = !$(id).textContent;
+  const nx = line && opts.next && S.lines[S.current + 1];
+  $("pn").textContent = nx ? nx.gurmukhi : ""; $("pn").hidden = !nx;
+  $("ptag").hidden = !line;
+  if (line) $("ptag").textContent = S.kind === "bani" ? S.meta.name : (S.meta.source === "Sri Guru Granth Sahib Ji" ? "Ang " : S.meta.pageLabel + " ") + line.page;
+  fit();
+  pushSlide();
+  for (const id of ["blank", "blank-top"]) { $(id).classList.toggle("on", S.blank); }
+  $("blank").textContent = S.blank ? "Show" : "Blank";
+  $("blank-top").textContent = S.blank ? "Screen is blank" : "Blank screen";
+  renderSource(); renderLines(newLines); renderListen();
+}
+function renderSource() {
+  const m = S.meta, el = $("src"); el.textContent = "";
+  if (!S.kind) return;
+  const b = document.createElement("b");
+  if (S.kind === "bani") { b.textContent = m.name; el.append(b, document.createTextNode(`, ${S.lines.length} lines`)); return; }
+  b.textContent = m.source === "Sri Guru Granth Sahib Ji" ? `Ang ${m.page}` : `${m.pageLabel} ${m.page}`;
+  el.append(b, document.createTextNode(`  ${[m.source, m.writer, m.section].filter(Boolean).join(", ")}`));
+}
 function renderLines(rebuild) {
-  const box = $("lines"), m = S.meta;
-  $("title").textContent = !S.kind ? "" : S.kind === "bani" ? `${m.name} · ${S.lines.length} lines`
-    : [m.source, `${m.pageLabel} ${m.page || ""}`, m.writer, m.section].filter(Boolean).join(" · ");
-  const cl = currentLine();
-  $("now").hidden = !cl;
-  if (cl) { $("now-g").textContent = cl.gurmukhi; $("now-en").textContent = cl.english; $("now-pa").textContent = cl.punjabi; $("now-tl").textContent = cl.translit; }
-  if (!S.lines.length) { box.innerHTML = '<div class="empty">No shabad yet. Search, pick a bani, or let Full Auto find it.</div>'; return; }
+  const box = $("lines");
+  if (!S.lines.length) {
+    box.innerHTML = '<div class="empty"><b>No shabad yet</b>Search on the left, pick a bani, or switch to Full Auto and start listening.</div>';
+    return;
+  }
   if (rebuild || box.children.length !== S.lines.length) {
     box.innerHTML = "";
+    let n = 0;
     S.lines.forEach((l, i) => {
       const b = document.createElement("button");
       b.className = "ln" + (l.type <= 2 ? " head" : "");
-      b.append(document.createTextNode(l.gurmukhi));
-      if (l.type === 3) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "ਰਹਾਉ"; b.append(t); }
+      const no = document.createElement("span"); no.className = "no"; no.textContent = l.type > 2 ? ++n : "";
+      const tx = document.createElement("span"); tx.className = "tx"; tx.textContent = l.gurmukhi;
+      if (l.type === 3) { const r = document.createElement("span"); r.className = "rh"; r.textContent = "ਰਹਾਉ"; tx.append(r); }
       for (const [cls, txt] of [["en", l.english], ["pa", l.punjabi]]) if (txt && l.type > 2) {
-        const t = document.createElement("span"); t.className = "tr " + cls; t.textContent = txt; b.append(t);
+        const t = document.createElement("span"); t.className = "tr " + cls; t.textContent = txt; tx.append(t);
       }
+      b.append(no, tx);
       b.onclick = () => send({ t: "go", i });
       box.append(b);
     });
   }
   [...box.children].forEach((d, i) => d.classList.toggle("cur", i === S.current));
   const el = box.children[S.current];
-  if (el && !$("t-shabad").hidden) {
+  if (el) {
     const top = el.offsetTop - box.offsetTop;
-    if (top < box.scrollTop || top > box.scrollTop + box.clientHeight - 60) box.scrollTo({ top: top - 40, behavior: "smooth" });
+    if (top < box.scrollTop + 10 || top + el.offsetHeight > box.scrollTop + box.clientHeight - 10)
+      box.scrollTo({ top: Math.max(0, top - box.clientHeight / 3), behavior: "smooth" });
   }
 }
-
-const MODE_TEXT = { auto: "Full Auto: finds the shabad itself and follows the lines.",
-  semi: "Semi: you pick the shabad, it follows the lines.", manual: "Manual: nothing moves on its own." };
-function renderStatus(main) {
-  $("stat1").textContent = main || (listening ? "Listening" : "Not listening");
-  $("stat2").textContent = S.mode === "auto" && !S.finderReady ? "Getting Full Auto ready..." : MODE_TEXT[S.mode];
-}
+const MODE_TEXT = { auto: "<b>Full Auto</b> finds the shabad itself and follows the lines. Tap any line to correct it.",
+  semi: "<b>Semi Auto</b>: you pick the shabad, it follows the lines.", manual: "<b>Manual</b>: nothing moves on its own. Use Prev, Next, or tap a line." };
 function renderListen() {
   const words = (S.heard || "").split(" ").filter(Boolean);
   const h = $("heard"); h.textContent = "";
   if (words.length) { h.append(words.slice(0, -4).join(" ") + " "); const em = document.createElement("em"); em.textContent = words.slice(-4).join(" "); h.append(em); }
-  const sb = $("sure");
-  sb.hidden = S.confidence == null || !listening || S.mode === "manual" || !S.lines.length;
-  if (!sb.hidden) { sb.textContent = `${S.confidence}% sure`; sb.className = "sure " + (S.confidence >= opts.sure ? "hi" : S.confidence >= 45 ? "mid" : "lo"); }
+  else { const s = document.createElement("span"); s.className = "idle"; s.textContent = listening ? "Listening..." : "Not listening yet. Press Start listening and allow the microphone."; h.append(s); }
+  const showRing = listening && S.mode !== "manual" && S.lines.length && S.confidence != null;
+  const p = showRing ? S.confidence : 0;
+  $("ring").style.setProperty("--p", p);
+  $("ring").style.setProperty("--c", !showRing ? "var(--muted)" : p >= opts.sure ? "var(--ok)" : p >= 45 ? "var(--mid)" : "var(--lo)");
+  $("ring-t").textContent = showRing ? `${p}%` : "–";
+  $("mode-note").innerHTML = S.mode === "auto" && listening && !S.finderReady ? "<b>Getting Full Auto ready</b>, a few seconds the first time." : MODE_TEXT[S.mode];
   const box = $("sugg"); box.innerHTML = "";
   if (S.mode !== "manual") for (const s of S.suggestions || []) {
     if (!s.text) continue;
     const b = document.createElement("button");
-    const sm = document.createElement("small"); sm.textContent = S.mode === "auto" ? "Hearing" : "Is it this one? Tap to load";
+    const sm = document.createElement("small"); sm.textContent = S.mode === "auto" ? "Hearing" : "Is it this one? Tap to put it up";
     const g = document.createElement("span"); g.className = "g"; g.textContent = s.text;
     const mt = document.createElement("div"); mt.className = "meter"; mt.innerHTML = `<i style="width:${Math.min(100, Math.round(s.v / 2.5 * 100))}%"></i>`;
     b.append(sm, g, mt); b.onclick = () => send({ t: "load", num: s.sid, line: s.line });
     box.append(b);
   }
-  renderStatus();
 }
 function warn(msg) { $("warn").textContent = msg || ""; $("warn").hidden = !msg; }
 
-// ---------- present mode (full screen on this device) ----------
-function fitPresent() {
-  const s = $("slide");
-  if (!s.classList.contains("present")) return;
-  let k = opts.size / 100; s.style.setProperty("--k", k);
-  for (let i = 0; i < 25 && s.scrollHeight > s.clientHeight + 2; i++) { k *= 0.94; s.style.setProperty("--k", k); }
+// keep long teeka inside the preview / full screen
+function fit() {
+  const p = $("proj"), t = $("ptxt");
+  let k = opts.size / 100; p.style.setProperty("--k", k);
+  for (let i = 0; i < 25 && t.scrollHeight > t.clientHeight + 2; i++) { k *= 0.94; p.style.setProperty("--k", k); }
 }
-$("fs").onclick = async () => {
-  const s = $("slide"), on = !s.classList.contains("present");
-  s.classList.toggle("present", on);
-  try { if (on && s.requestFullscreen) await s.requestFullscreen(); else if (!on && document.fullscreenElement) await document.exitFullscreen(); } catch (e) {}
-  render();
+new ResizeObserver(() => fit()).observe($("proj"));
+
+// ---------- full screen on this device ----------
+$("fs").onclick = async e => {
+  e.stopPropagation();
+  const p = $("proj");
+  if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+  if (p.classList.contains("present")) { p.classList.remove("present"); fit(); return; }
+  try { await p.requestFullscreen(); } catch (err) { p.classList.add("present"); }   // iPhone: no fullscreen API, fill the window instead
+  fit();
 };
-document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && $("slide").classList.contains("present")) { $("slide").classList.remove("present"); render(); } });
-window.addEventListener("resize", fitPresent);
+document.addEventListener("fullscreenchange", fit);
+const presenting = () => document.fullscreenElement === $("proj") || $("proj").classList.contains("present");
+$("proj").addEventListener("click", e => {
+  if (!presenting()) return;
+  const r = $("proj").getBoundingClientRect(); send({ t: "step", d: e.clientX > r.left + r.width / 2 ? 1 : -1 });
+});
 let touchX = null;
-$("slide").addEventListener("touchstart", e => { touchX = e.touches[0].clientX; }, { passive: true });
-$("slide").addEventListener("touchend", e => {
+$("proj").addEventListener("touchstart", e => { touchX = e.touches[0].clientX; }, { passive: true });
+$("proj").addEventListener("touchend", e => {
   if (touchX === null) return; const dx = e.changedTouches[0].clientX - touchX; touchX = null;
   if (Math.abs(dx) > 50) send({ t: "step", d: dx < 0 ? 1 : -1 });
-});
-$("slide").addEventListener("click", e => {
-  if (e.target.closest(".fs-btn") || !$("slide").classList.contains("present")) return;
-  const r = $("slide").getBoundingClientRect(); send({ t: "step", d: e.clientX > r.left + r.width / 2 ? 1 : -1 });
 });
 
 // ---------- controls ----------
 document.querySelectorAll("#modes button").forEach(b => b.onclick = () => {
   S.mode = opts.mode = b.dataset.m; saveOpts(); send({ t: "mode", mode: b.dataset.m }); render();
 });
-$("prev").onclick = () => send({ t: "step", d: -1 });
-$("next").onclick = () => send({ t: "step", d: 1 });
-$("blank").onclick = () => send({ t: "blank", on: !S.blank });
+for (const [id, d] of [["prev", -1], ["next", 1], ["d-prev", -1], ["d-next", 1]]) $(id).onclick = () => send({ t: "step", d });
+$("blank").onclick = $("blank-top").onclick = () => send({ t: "blank", on: !S.blank });
+$("clear").onclick = () => send({ t: "clear" });
 document.addEventListener("keydown", e => {
   if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
   if (["ArrowRight", "ArrowDown", " "].includes(e.key)) { e.preventDefault(); send({ t: "step", d: 1 }); }
   if (["ArrowLeft", "ArrowUp"].includes(e.key)) { e.preventDefault(); send({ t: "step", d: -1 }); }
-  if (e.key === "b") $("blank").click();
-  if (e.key === "f") $("fs").click();
+  if (e.key === "b" || e.key === "B") send({ t: "blank", on: !S.blank });
+  if (e.key === "f" || e.key === "F") $("fs").click();
 });
-document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
-  for (const t of ["shabad", "search", "banis", "settings"]) $("t-" + t).hidden = t !== b.dataset.t;
-  if (b.dataset.t === "search") $("q").focus();
-  if (b.dataset.t === "shabad") renderLines(false);
-});
-const showTab = t => document.querySelector(`.tabs button[data-t="${t}"]`).click();
 
 let qTimer;
-$("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => send({ t: "search", q: $("q").value, id: ++searchId }), 150); });
+$("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => send({ t: "search", q: $("q").value, id: ++searchId }), 140); });
 function renderResults(rows) {
   const box = $("results"); box.innerHTML = "";
-  if (!rows.length && $("q").value.trim()) { box.innerHTML = '<div class="empty">No matches</div>'; return; }
+  if (!rows.length && $("q").value.trim()) { box.innerHTML = '<div class="hint" style="padding:8px">No matches. Try fewer letters.</div>'; return; }
   for (const r of rows) {
     const b = document.createElement("button"); b.className = "res";
     const g = document.createElement("span"); g.className = "g"; g.textContent = r.gurmukhi;
-    const s = document.createElement("small"); s.textContent = `${r.translit} · ${r.source} · ${r.label} ${r.page}`;
-    b.append(g, s); b.onclick = () => { send({ t: "load", num: r.num, line: r.i }); showTab("shabad"); };
+    const s = document.createElement("small"); s.textContent = `${r.source}, ${r.label} ${r.page}`;
+    b.append(g, s); b.onclick = () => { send({ t: "load", num: r.num, line: r.i }); if (matchMedia("(max-width: 960px)").matches) scrollTo({ top: 0, behavior: "smooth" }); };
     box.append(b);
   }
 }
-function renderBanis() {
+const COMMON_BANIS = ["Jap Ji Sahib", "Jaap Sahib", "Rehras Sahib (S.)", "Sohila Sahib", "Anand Sahib", "Sukhmani Sahib", "Asa Ki Var", "Ardaas", "Benti Chaupai Sahib", "Tav Prasad Savaiye (Sravag Sudh)"];
+function renderBanis(banis) {
   const bx = $("banis"); bx.innerHTML = "";
   for (const [id, en, pa] of banis) {
-    const b = document.createElement("button");
-    const g = document.createElement("span"); g.className = "g"; g.textContent = pa;
-    const s = document.createElement("small"); s.textContent = en;
-    b.append(g, s); b.onclick = () => { send({ t: "bani", id }); showTab("shabad"); };
+    const b = document.createElement("button"); b.textContent = pa; b.title = en;
+    if (!COMMON_BANIS.includes(en)) b.classList.add("extra");
+    b.onclick = () => { send({ t: "bani", id }); if (matchMedia("(max-width: 960px)").matches) scrollTo({ top: 0, behavior: "smooth" }); };
     bx.append(b);
   }
+  const more = document.createElement("button"); more.className = "more"; more.textContent = "All banis";
+  more.onclick = () => { const all = bx.classList.toggle("all"); more.textContent = all ? "Fewer banis" : "All banis"; bx.append(more); };
+  bx.append(more);
 }
 
 // ---------- settings ----------
@@ -514,20 +637,27 @@ for (const k of ["english", "punjabi", "translit", "next"]) {
 }
 $("o-alltr").checked = opts.alltr; $("lines").classList.toggle("withtr", opts.alltr);
 $("o-alltr").onchange = e => { opts.alltr = e.target.checked; saveOpts(); $("lines").classList.toggle("withtr", opts.alltr); };
-$("o-size").value = opts.size; $("o-size").oninput = e => { opts.size = +e.target.value; saveOpts(); render(); };
-$("o-dim").value = opts.dim; $("o-dim").oninput = e => { opts.dim = +e.target.value; saveOpts(); applyBg(); };
-$("o-sure").value = opts.sure; $("sure-v").textContent = opts.sure;
-$("o-sure").oninput = e => { opts.sure = +e.target.value; $("sure-v").textContent = opts.sure; saveOpts(); send({ t: "sure", v: opts.sure }); };
-$("o-lang").value = opts.lang; $("o-lang").onchange = e => { opts.lang = e.target.value; saveOpts(); if (listening) restartRec(); };
+const setV = (id, v) => $(id).textContent = v + "%";
+$("o-size").value = opts.size; setV("size-v", opts.size);
+$("o-size").oninput = e => { opts.size = +e.target.value; setV("size-v", opts.size); saveOpts(); render(); };
+$("o-sure").value = opts.sure; setV("sure-v", opts.sure);
+$("o-sure").oninput = e => { opts.sure = +e.target.value; setV("sure-v", opts.sure); saveOpts(); send({ t: "sure", v: opts.sure }); renderListen(); };
+$("o-dim").value = opts.dim; setV("dim-v", opts.dim);
+$("o-dim").oninput = e => { opts.dim = +e.target.value; setV("dim-v", opts.dim); saveOpts(); applyBg(); };
+for (const id of ["o-lang", "o-lang2"]) {
+  $(id).value = opts.lang;
+  $(id).onchange = e => { opts.lang = e.target.value; $("o-lang").value = $("o-lang2").value = opts.lang; saveOpts(); if (listening) restartRec(); };
+}
 $("openproj").onclick = () => {
   const w = window.open("display.html", "kf-projector", "popup,width=1280,height=720");
-  if (!w) toast("Your browser blocked the window. Allow pop-ups for this site, or open display.html in a new window.");
+  if (!w) toast("The browser blocked the window. Allow pop-ups for this site and try again.");
 };
+setInterval(renderScreens, 2000);
 $("warm").onclick = () => { $("warmnote").textContent = "Saving... 0%"; send({ t: "warm", base: new URL(DATA, location.href).href }); };
 $("testsend").onclick = () => {
   const w = $("testtext").value.split(/\s+/).filter(Boolean); let i = 0, utter = "";
   const t = setInterval(() => { if (i >= w.length) { send({ t: "heard", text: utter, final: true }); return clearInterval(t); }
-    utter += w[i++] + " "; send({ t: "heard", text: utter, final: false }); }, 450);
+    utter += w[i++] + " "; send({ t: "heard", text: utter, final: false }); S.heard = utter; renderListen(); }, 450);
 };
 
 // ---------- backgrounds ----------
@@ -544,16 +674,18 @@ async function loadBgList() {
   try { list = await (await fetch("bg/index.json?v=__BUILD__")).json(); } catch (e) { list = [{ file: "art/01-sttm-blue.jpg" }, { file: "art/07-black.jpg" }]; }
   const mine = await idb.all();
   bgList = list.map(b => ({ id: b.file, url: "bg/" + b.file, credit: b.credit || "" }))
-    .concat(mine.map(p => ({ id: "mine:" + p.id, blob: p.blob, credit: "Your photo" })));
+    .concat(mine.map(p => ({ id: "mine:" + p.id, blob: p.blob, credit: "" })));
   renderBgs(); applyBg();
 }
+const srcOf = b => b.blob ? (b.thumb || (b.thumb = URL.createObjectURL(b.blob))) : b.url;
 function renderBgs() {
   const box = $("bgs"); box.innerHTML = "";
-  const plain = document.createElement("button"); plain.className = "plain"; plain.textContent = "Plain"; plain.dataset.id = "";
+  const plain = document.createElement("button"); plain.textContent = "Plain"; plain.dataset.id = ""; plain.title = "Plain blue";
   plain.onclick = () => pickBg(""); box.append(plain);
   for (const b of bgList) {
-    const el = document.createElement("button"); el.dataset.id = b.id; el.title = b.credit || "";
-    el.style.backgroundImage = `url("${b.blob ? (b.thumb || (b.thumb = URL.createObjectURL(b.blob))) : b.url}")`;
+    const el = document.createElement("button"); el.dataset.id = b.id; el.title = b.credit || (b.blob ? "Your photo" : "");
+    el.setAttribute("aria-label", el.title || "Background");
+    el.style.backgroundImage = `url("${srcOf(b)}")`;
     el.onclick = () => pickBg(b.id);
     box.append(el);
   }
@@ -561,17 +693,16 @@ function renderBgs() {
 }
 function pickBg(id) {
   opts.bg = id;
-  if (id && !id.startsWith("art/") && opts.dim < 30) { opts.dim = 35; $("o-dim").value = 35; }   // photos need darkening
+  if (id && !id.startsWith("art/") && opts.dim < 30) { opts.dim = 35; $("o-dim").value = 35; setV("dim-v", 35); }   // photos need darkening
   saveOpts(); renderBgs(); applyBg();
 }
 function applyBg() {
   const b = bgList.find(x => x.id === opts.bg);
-  curBgBlob = b && b.blob ? b.blob : null; curBgUrl = b && !b.blob ? b.url : null; curCredit = b && b.credit && !b.blob ? b.credit : "";
+  curBgBlob = b && b.blob ? b.blob : null; curBgUrl = b && !b.blob ? b.url : null; curCredit = b && b.credit ? b.credit : "";
   $("bgcredit").textContent = curCredit ? "Photo: " + curCredit : "";
   const el = $("bgimg");
-  if (!b) { el.classList.remove("on"); }
-  else { const src = b.blob ? (b.thumb || (b.thumb = URL.createObjectURL(b.blob))) : b.url;
-    const img = new Image(); img.onload = () => { el.style.backgroundImage = `url("${src}")`; el.classList.add("on"); }; img.src = src; }
+  if (!b) el.classList.remove("on");
+  else { const src = srcOf(b); const img = new Image(); img.onload = () => { el.style.backgroundImage = `url("${src}")`; el.classList.add("on"); }; img.src = src; }
   $("dim").style.opacity = (opts.dim || 0) / 100;
   pushSlide();
 }
@@ -601,34 +732,64 @@ function startRec() {
     if (interim && now - lastInterim > 60) { lastInterim = now; send({ t: "heard", text: interim, final: false }); }
   };
   rec.onerror = ev => {
-    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { warn("The microphone is blocked. Allow the microphone for this site in your browser settings, then tap the mic again."); stop(); }
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { warn("The microphone is blocked. Allow it for this site in the browser settings, then press Start listening again."); stop(); }
     else if (ev.error === "language-not-supported") {
-      opts.lang = LANGS[(LANGS.indexOf(opts.lang) + 1) % LANGS.length]; saveOpts(); $("o-lang").value = opts.lang;
-      warn(`That recognizer isn't available here. Switched to ${$("o-lang").selectedOptions[0].text}.`);
-    } else if (ev.error === "network") warn("Speech recognition needs internet. Check the wifi or data.");
+      opts.lang = LANGS[(LANGS.indexOf(opts.lang) + 1) % LANGS.length]; saveOpts(); $("o-lang").value = $("o-lang2").value = opts.lang;
+      warn(`That recognizer isn't available on this device. Switched to ${$("o-lang").selectedOptions[0].text}.`);
+    } else if (ev.error === "network") warn("Speech recognition needs internet. Check the wifi or mobile data.");
   };
-  rec.onend = () => { if (listening) setTimeout(() => { if (listening) startRec(); }, 150); };   // phones stop after silence
+  rec.onend = () => { if (listening) setTimeout(() => { if (listening) startRec(); }, 150); };   // browsers stop after silence; keep going
   try { rec.start(); } catch (e) {}
 }
 function restartRec() { try { rec && rec.abort(); } catch (e) {} }
+
+// live level bars on the listen button (not on iPhone, where a second mic stream can stop recognition)
+let meter = null;
+async function startMeter() {
+  if (isIOS || !navigator.mediaDevices) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+    const ac = new AudioContext(), an = ac.createAnalyser(); an.fftSize = 256;
+    ac.createMediaStreamSource(stream).connect(an);
+    const buf = new Uint8Array(an.frequencyBinCount), bars = [...document.querySelectorAll(".bars i")];
+    meter = { stream, ac, raf: 0 };
+    const tick = () => {
+      an.getByteFrequencyData(buf);
+      bars.forEach((b, i) => { let s = 0; for (let j = i * 8 + 2; j < i * 8 + 10; j++) s += buf[j]; b.style.height = `${Math.max(18, Math.min(100, s / 8 / 1.6))}%`; });
+      meter.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (e) {}
+}
+function stopMeter() {
+  if (!meter) return;
+  cancelAnimationFrame(meter.raf); meter.stream.getTracks().forEach(t => t.stop()); meter.ac.close().catch(() => {}); meter = null;
+  document.querySelectorAll(".bars i").forEach(b => b.style.height = "");
+}
+function setListenUi() {
+  $("listen").classList.toggle("live", listening); $("d-mic").classList.toggle("live", listening);
+  $("listen-t").textContent = listening ? "Listening" : "Start listening";
+  $("d-mic").setAttribute("aria-label", listening ? "Stop listening" : "Start listening");
+  renderListen();
+}
 function stop() {
   listening = false; try { rec && rec.abort(); } catch (e) {}
-  $("mic").classList.remove("live"); $("mic").setAttribute("aria-label", "Start listening"); renderListen();
+  stopMeter(); setListenUi();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
 }
-$("mic").onclick = async () => {
+async function toggleListen() {
   if (listening) return stop();
   if (!SR) { warn("This browser can't do speech recognition. Use Chrome on a laptop or Android, or Safari on iPhone."); return; }
-  warn(""); listening = true; lastWords = Date.now();
-  $("mic").classList.add("live"); $("mic").setAttribute("aria-label", "Stop listening"); renderListen();
-  startRec();
-  send({ t: "finder" });   // also powers the "Is it this one?" suggestions in Semi
+  warn(""); listening = true; lastWords = Date.now(); setListenUi();
+  startRec(); startMeter();
+  send({ t: "finder" });   // also powers the "Is it this one?" suggestions in Semi Auto
   try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
-};
+}
+$("listen").onclick = $("d-mic").onclick = toggleListen;
 setInterval(() => {
   if (!listening || Date.now() - lastWords < 20000) return;
   $("warn").dataset.quiet = "1";
-  warn("No words heard for 20 seconds. Move closer to the speakers or plug into the sound board, check the browser has the right microphone, or try the Hindi recognizer in Settings.");
+  warn("No words heard for 20 seconds. Move closer to the speakers or plug into the sound board, check the browser is using the right microphone, or try the Hindi recognizer.");
 }, 5000);
 document.addEventListener("visibilitychange", async () => {
   if (document.visibilityState === "visible" && listening && !wakeLock) { try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
@@ -643,7 +804,7 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
     });
   }).catch(() => {});
 }
-renderStatus();
+render(true);
 </script>
 </body>
 </html>

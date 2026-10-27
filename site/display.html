@@ -77,7 +77,7 @@ function render(m) {
 const bc = new BroadcastChannel("kirtan-follow");
 bc.onmessage = ({ data }) => { if (data && data.t === "slide") render(data); };
 bc.postMessage({ t: "hello" });
-setInterval(() => { if (!$("wait").hidden) bc.postMessage({ t: "hello" }); }, 1000);
+setInterval(() => bc.postMessage({ t: $("wait").hidden ? "alive" : "hello" }), 1000);
 document.addEventListener("keydown", e => {
   if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
 });
