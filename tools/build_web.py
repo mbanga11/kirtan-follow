@@ -2,7 +2,20 @@
 
     python build_web.py      -> web/  (upload this folder to any HTTPS static host)
 """
-import json, os, shutil, sqlite3
+import json, os, re, shutil, sqlite3
+
+
+def roman_key(t):
+    """Gurbani in English letters, simplified so typed spellings match:
+    'Kahu Naanak' / 'kahu nanak' / 'kahunanak' all become 'kahunanak'.
+    Must stay identical to romanKey() in site/engine.js."""
+    t = re.sub(r"[^a-z]", "", t.lower())
+    for a, b in (("chh", "c"), ("ch", "c"), ("sh", "s"), ("ph", "f"), ("w", "v"), ("z", "j"), ("q", "k"), ("y", "i")):
+        t = t.replace(a, b)
+    t = re.sub(r"([bdgjktp])h", r"\1", t)
+    for a, b in (("ee", "i"), ("oo", "u"), ("ai", "e"), ("au", "o"), ("ou", "o")):
+        t = t.replace(a, b)
+    return re.sub(r"(.)\1+", r"\1", t)
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 DB = os.path.join(HERE, "data", "gurbani.sqlite")
@@ -57,12 +70,12 @@ def main():
                       r["punjabi"] or "", r["translit"] or ""])
         index.append((n, len(lines) - 1, r["type"] or 4, r["page"],
                       (r["first_letters_ascii"] or "").replace("]", "").replace("[", ""),
-                      "".join(cmap[ch] for ch in r["sound"])))
+                      "".join(cmap[ch] for ch in r["sound"]), roman_key(r["translit"] or "")))
 
     src_of = [SOURCES.index(r["source"]) for r in shabads]
     with open(os.path.join(OUT, "index.txt"), "w", encoding="utf-8") as f:
-        for n, i, t, page, fl, key in sorted(index):
-            f.write(f"{n}\t{i}\t{t}\t{page}\t{fl}\t{key}\n")
+        for n, i, t, page, fl, key, rk in sorted(index):
+            f.write(f"{n}\t{i}\t{t}\t{page}\t{fl}\t{key}\t{rk}\n")
     for k, sh in enumerate(shards):
         with open(os.path.join(OUT, "s", f"{k}.json"), "w", encoding="utf-8") as f:
             json.dump(sh, f, ensure_ascii=False, separators=(",", ":"))

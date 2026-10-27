@@ -31,7 +31,7 @@ async function fetchRetry(url, onProgress) {
 }
 
 async function preview(num, i) {
-  try { const sh = await gb.shard(num); const l = sh.l[i]; return l ? l[2] : ""; } catch (e) { return ""; }
+  try { const sh = await gb.shard(num); const l = sh.l[i]; return l ? [l[2], l[5]] : ["", ""]; } catch (e) { return ["", ""]; }
 }
 
 async function postState() {
@@ -47,7 +47,7 @@ async function postState() {
     lastLinesVersion = ctl.linesVersion;
   }
   msg.suggestions = await Promise.all(ctl.suggestions.filter(s => s.v >= 0.4 && s.line != null)
-    .map(async s => ({ sid: s.sid, line: s.line, v: s.v, text: await preview(s.sid, s.line) })));
+    .map(async s => { const [text, roman] = await preview(s.sid, s.line); return { sid: s.sid, line: s.line, v: s.v, text, roman }; }));
   postMessage(msg);
 }
 

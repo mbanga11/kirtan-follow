@@ -17,6 +17,13 @@ Lines only change when the app is at least **70% sure** (adjustable in Settings)
 (next line, back to the rahao, or a repeat) with how well the words just heard fit the start of each line, and keeps
 checking after every word. In testing it usually switches 1 to 2 words into a new line.
 
+## Made for sewadars who read English first
+
+- **Search in English letters, any spelling:** `kahu nanak santan`, `mitar pyare nu`, `satnam`, `anand bhaya`. First letters (`knsr`), Gurmukhi, and Ang numbers work too.
+- **English letters under every line** in the list (on by default), plus English and Punjabi meanings.
+- **Bani buttons in English** (Jap Ji Sahib, Rehras Sahib, Sukhmani Sahib...).
+- **A short "How to run it" guide** shows the first time, in plain English.
+
 ## At the gurdwara
 
 - **Laptop + projector:** open the site in Chrome, Settings → **Open projector screen**, drag that window onto the projector and press **F**. It mirrors the main page instantly.

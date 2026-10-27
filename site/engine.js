@@ -90,13 +90,13 @@
       const L = txt.split("\n");
       const n = L.length;
       this.shabad = new Int32Array(n); this.idx = new Int16Array(n); this.type = new Int8Array(n);
-      this.page = new Int16Array(n); this.fl = new Array(n); this.key = new Array(n);
+      this.page = new Int16Array(n); this.fl = new Array(n); this.key = new Array(n); this.rom = new Array(n);
       let k = 0;
       for (const line of L) {
         if (!line) continue;
         const p = line.split("\t");
         this.shabad[k] = +p[0]; this.idx[k] = +p[1]; this.type[k] = +p[2]; this.page[k] = +p[3];
-        this.fl[k] = p[4]; this.key[k] = p[5] || ""; k++;
+        this.fl[k] = p[4]; this.key[k] = p[5] || ""; this.rom[k] = p[6] || ""; k++;
       }
       this.count = k;
     }
@@ -152,15 +152,68 @@
         for (let k = 0; k < this.count && out.length < limit; k++) if (this.key[k].includes(key)) out.push(k);
         return out;
       }
+      if (!hasG && /\s/.test(q)) return this.searchRoman(q, limit);     // "kahu nanak santan"
+      // one English word like "waheguru" or "japji" (has vowels, no STTM capitals): words first, then first letters
+      const vowels = (q.toLowerCase().match(/[aeiou]/g) || []).length;
+      const wordish = !hasG && q.length >= 4 && vowels / q.length >= 0.25 && !/[A-Z]/.test(q.slice(1));
+      if (wordish) {
+        const out = this.searchRoman(q, limit);
+        if (out.length >= limit) return out;
+        q = q.toLowerCase();
+        const fl3 = q, seen = new Set(out);
+        for (let k = 0; k < this.count && out.length < limit; k++) if (!seen.has(k) && this.fl[k].toLowerCase().startsWith(fl3)) out.push(k);
+        return out;
+      }
       const fl = hasG ? gurmukhiToSttm(q) : q;
       const starts = [], contains = [];
-      for (let k = 0; k < this.count; k++) {
-        const f = this.fl[k];
-        if (f.startsWith(fl)) { starts.push(k); if (starts.length >= limit) break; }
-        else if (contains.length < limit && f.includes(fl)) contains.push(k);
+      const scan = (f) => {
+        for (let k = 0; k < this.count; k++) {
+          const v = f(this.fl[k]);
+          if (v.startsWith(fl2)) { starts.push(k); if (starts.length >= limit) break; }
+          else if (contains.length < limit && v.includes(fl2)) contains.push(k);
+        }
+      };
+      let fl2 = fl;
+      scan(x => x);
+      // phones capitalise the first letter: try again ignoring capitals
+      if (!hasG && starts.length + contains.length < 3) { fl2 = fl.toLowerCase(); scan(x => x.toLowerCase()); }
+      const firstLetters = [...new Set(starts.concat(contains))];
+      // one English word like "japji" or "waheguru": also look it up as a word
+      if (!hasG && fl.length >= 4 && /[aeiou]/i.test(fl) && firstLetters.length < limit) {
+        for (const k of this.searchRoman(q, limit)) if (!firstLetters.includes(k)) firstLetters.push(k);
       }
-      return starts.concat(contains).slice(0, limit);
+      return firstLetters.slice(0, limit);
     }
+    // Gurbani typed in English letters, any spelling: "kahu nanak", "kahunaanak", "waheguru"
+    searchRoman(q, limit = 20) {
+      const key = romanKey(q);
+      if (key.length < 3) return [];
+      const starts = [], contains = [];
+      for (let k = 0; k < this.count && starts.length < limit; k++) {
+        if (this.type[k] < 3) continue;
+        const r = this.rom[k];
+        if (r.startsWith(key)) starts.push(k);
+        else if (contains.length < limit && r.includes(key)) contains.push(k);
+      }
+      let out = starts.concat(contains);
+      if (out.length < 5) {     // spelled differently: compare consonants only
+        const sk = key.replace(/[aeiou]/g, "");
+        if (sk.length >= 3) for (let k = 0; k < this.count && out.length < limit; k++) {
+          if (this.type[k] < 3 || out.includes(k)) continue;
+          if (this.rom[k].replace(/[aeiou]/g, "").includes(sk)) out.push(k);
+        }
+      }
+      return out.slice(0, limit);
+    }
+  }
+
+  // must stay identical to roman_key() in tools/build_web.py
+  function romanKey(t) {
+    t = t.toLowerCase().replace(/[^a-z]/g, "");
+    for (const [a, b] of [["chh", "c"], ["ch", "c"], ["sh", "s"], ["ph", "f"], ["w", "v"], ["z", "j"], ["q", "k"], ["y", "i"]]) t = t.split(a).join(b);
+    t = t.replace(/([bdgjktp])h/g, "$1");
+    for (const [a, b] of [["ee", "i"], ["oo", "u"], ["ai", "e"], ["au", "o"], ["ou", "o"]]) t = t.split(a).join(b);
+    return t.replace(/(.)\1+/g, "$1");
   }
 
   // Gurmukhi first letters -> SikhiToTheMax keyboard letters
@@ -416,6 +469,6 @@
     currentLine() { return this.blank || !this.tracker ? null : this.lines[this.tracker.current]; }
   }
 
-  const api = { soundKey, cleanAsr, ratio, partialRatio, Gurbani, ShabadFinder, LineTracker, Controller, gurmukhiToSttm, TUNE };
+  const api = { romanKey, soundKey, cleanAsr, ratio, partialRatio, Gurbani, ShabadFinder, LineTracker, Controller, gurmukhiToSttm, TUNE };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.KF = api;
 })(typeof self !== "undefined" ? self : this);

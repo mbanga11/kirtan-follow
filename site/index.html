@@ -89,6 +89,13 @@
   details.card > summary .chev { margin-left: auto; transition: transform .2s; color: var(--muted); }
   details.card[open] > summary .chev { transform: rotate(180deg); }
 
+  /* quick start */
+  .start { background: linear-gradient(160deg, color-mix(in srgb, var(--blue) 9%, var(--surface)), var(--surface)); border-color: color-mix(in srgb, var(--blue) 25%, var(--rule)); }
+  .start .x { margin-left: auto; border: 0; background: var(--blue); color: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 700; }
+  .steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; line-height: 1.45; }
+  .steps li::marker { color: var(--kesri); font-weight: 800; }
+  .steps b { font-weight: 700; }
+
   /* listening */
   .heard { font-family: var(--f-gur); font-size: 17px; line-height: 1.6; color: var(--muted); min-height: 3.2em; overflow-wrap: anywhere; }
   .heard em { font-style: normal; color: var(--ink); font-weight: 700; }
@@ -106,6 +113,7 @@
                  border-radius: 12px; padding: 9px 12px; }
   .sugg small { color: var(--kesri-ink); font-weight: 700; font-size: 12px; }
   .sugg .g { display: block; font-weight: 700; font-size: 16px; line-height: 1.45; }
+  .sugg .sro { display: block; font-size: 13px; font-weight: 600; opacity: .8; }
   .meter { height: 4px; background: color-mix(in srgb, var(--kesri) 18%, transparent); border-radius: 4px; margin-top: 6px; overflow: hidden; }
   .meter i { display: block; height: 100%; background: var(--kesri); border-radius: 4px; }
 
@@ -119,15 +127,17 @@
   .res { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 9px 10px; border-radius: 10px; }
   .res:hover { background: var(--sunk); }
   .res .g { display: block; font-weight: 700; font-size: 16.5px; line-height: 1.45; }
-  .res small { color: var(--muted); font-size: 12.5px; }
+  .res .ro { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink); opacity: .8; margin: 1px 0 2px; }
+  .res small { color: var(--muted); font-size: 12px; }
   .banis { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-  .banis button { border: 1px solid var(--rule); background: var(--sunk); border-radius: 999px; padding: 5px 12px 6px; font-family: var(--f-gur); font-weight: 700; font-size: 14px; }
+  .banis button { border: 1px solid var(--rule); background: var(--sunk); border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px; }
   .banis button:hover { border-color: var(--kesri); background: var(--kesri-soft); }
   .banis:not(.all) button.extra { display: none; }
   .banis .more { font-family: var(--f-ui); font-weight: 700; font-size: 13px; background: none; border-style: dashed; color: var(--muted); }
 
   /* toggles and sliders */
   .opts { display: grid; gap: 2px; }
+  .sw small { color: var(--muted); font-weight: 500; }
   .sw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: 14px; font-weight: 500; cursor: pointer; }
   .sw input { appearance: none; -webkit-appearance: none; width: 38px; height: 22px; border-radius: 999px; background: var(--rule); position: relative; margin: 0; flex: none; cursor: pointer; transition: background .2s; }
   .sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s; }
@@ -206,6 +216,10 @@
   .ln .tr { display: block; font: 500 13px/1.5 var(--f-ui); color: var(--muted); margin-top: 2px; }
   .ln .tr.pa { font-family: var(--f-gur); }
   .lines:not(.withtr) .ln:not(.cur) .tr { display: none; }
+  .ln .ro { display: block; font: 600 13.5px/1.45 var(--f-ui); color: var(--ink); opacity: .78; margin-top: 1px; }
+  .ln.cur .ro { color: #fff; opacity: .92; }
+  .lines:not(.withrom) .ln .ro { display: none; }
+  .lines-bar { justify-content: flex-start; gap: 18px; }
   .ln.cur { background: var(--blue); color: #fff; box-shadow: 0 10px 22px -14px var(--blue); }
   .ln.cur .no, .ln.cur .tr, .ln.cur.head .tx { color: rgba(255,255,255,.82); }
   .ln.cur .rh { background: rgba(255,255,255,.2); color: #fff; }
@@ -237,6 +251,7 @@
     .brand { margin-right: auto; }
     .modes button { padding: 7px 11px; }
     .proj { width: calc(100% - 24px); }
+    .proj .txt { inset: 13% 4% 4%; }
     .p-g { font-size: calc(var(--k, 1) * 5.6cqw); }
     .p-e, .p-p, .p-n { font-size: calc(var(--k, 1) * 2.7cqw); }
     .p-t { font-size: calc(var(--k, 1) * 2.9cqw); }
@@ -294,6 +309,17 @@
 <main class="layout">
   <!-- left: the laptop app's tools, top to bottom -->
   <div class="left">
+    <section class="card start" id="start" aria-labelledby="h-start" hidden>
+      <div class="card-h"><h2 id="h-start">How to run it</h2><button class="x" id="start-x" aria-label="Hide these steps">Got it</button></div>
+      <ol class="steps">
+        <li><b>Pick a mode at the top.</b> Full Auto finds the shabad on its own. Semi Auto lets you choose it, then follows along.</li>
+        <li><b>Press Start listening</b> and allow the microphone. Put the laptop or phone near a speaker.</li>
+        <li><b>Put it on the projector:</b> Open projector screen, drag that window onto the projector, press F.</li>
+        <li><b>If it's on the wrong line,</b> tap the right one in the list. It keeps following from there.</li>
+      </ol>
+      <p class="note">You don't need to read Gurmukhi fast. Search in English letters, and turn on "English letters" to see every line spelled out.</p>
+    </section>
+
     <section class="card" aria-labelledby="h-listen">
       <div class="card-h"><h2 id="h-listen">Listening</h2><span class="pa">ਸੁਣ ਰਹੇ ਹਾਂ</span></div>
       <div class="heard" id="heard"><span class="idle">Not listening yet. Press Start listening and allow the microphone.</span></div>
@@ -306,25 +332,25 @@
     </section>
 
     <section class="card" aria-labelledby="h-find">
-      <div class="card-h"><h2 id="h-find">Find shabad</h2><span class="pa">ਸ਼ਬਦ ਲੱਭੋ</span></div>
+      <div class="card-h"><h2 id="h-find">Find a shabad or bani</h2><span class="pa">ਸ਼ਬਦ ਲੱਭੋ</span></div>
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input type="search" id="q" placeholder="ਕਨਸਰ, knsr, words, or Ang number" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search Gurbani">
+        <input type="search" id="q" placeholder="Type words: kahu nanak, satnam..." autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search Gurbani">
       </div>
-      <div class="hint">First letters in Gurmukhi or STTM keys, a few words, or an Ang.</div>
+      <div class="hint">Any spelling works. You can also type first letters (knsr), Gurmukhi, or an Ang (page) number like 1302.</div>
       <div class="results" id="results"></div>
       <div class="banis" id="banis" aria-label="Banis"></div>
     </section>
 
     <section class="card" aria-labelledby="h-screen">
-      <div class="card-h"><h2 id="h-screen">Screen</h2><span class="pa">ਸਕਰੀਨ</span></div>
+      <div class="card-h"><h2 id="h-screen">What shows on the projector</h2></div>
       <div class="opts">
-        <label class="sw">English translation <input type="checkbox" id="o-english"></label>
-        <label class="sw">Punjabi teeka <input type="checkbox" id="o-punjabi"></label>
-        <label class="sw">Transliteration <input type="checkbox" id="o-translit"></label>
-        <label class="sw">Next line preview <input type="checkbox" id="o-next"></label>
+        <label class="sw"><span>English meaning</span><input type="checkbox" id="o-english"></label>
+        <label class="sw"><span>Punjabi meaning <small>(teeka)</small></span><input type="checkbox" id="o-punjabi"></label>
+        <label class="sw"><span>English letters <small>(how to say it)</small></span><input type="checkbox" id="o-translit"></label>
+        <label class="sw"><span>Show the next line, faded</span><input type="checkbox" id="o-next"></label>
         <div class="range"><span>Text size <b id="size-v">100%</b></span><input type="range" id="o-size" min="70" max="140" step="5" aria-label="Text size"></div>
-        <div class="range"><span>Switch lines when this sure <b id="sure-v">70%</b></span><input type="range" id="o-sure" min="50" max="95" step="5" aria-label="Switch lines when this sure"></div>
+        <div class="range"><span>Only change lines when this sure <b id="sure-v">70%</b></span><input type="range" id="o-sure" min="50" max="95" step="5" aria-label="Switch lines when this sure"></div>
       </div>
     </section>
 
@@ -374,7 +400,7 @@
         <div class="p-p" id="pp"></div>
         <div class="p-t" id="pt"></div>
         <div class="p-n" id="pn" hidden></div>
-        <div class="p-empty" id="pempty"><b>ਵਾਹਿਗੁਰੂ</b>Start listening. Full Auto finds the shabad by itself, or search for it on the left.</div>
+        <div class="p-empty" id="pempty"><b>ਵਾਹਿਗੁਰੂ</b>Press Start listening. Full Auto finds the shabad by itself, or search for one on the left.</div>
       </div>
     </div>
     <div class="controls">
@@ -384,7 +410,8 @@
       <button id="clear" class="fsbtn">Clear</button>
     </div>
     <div class="lines-bar">
-      <label class="sw">Translations under every line <input type="checkbox" id="o-alltr"></label>
+      <label class="sw">English letters <input type="checkbox" id="o-rom"></label>
+      <label class="sw">Meanings <input type="checkbox" id="o-alltr"></label>
     </div>
     <div class="lines" id="lines"></div>
   </section>
@@ -406,7 +433,7 @@ const store = {
 };
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const opts = Object.assign({ english: true, punjabi: true, translit: true, next: false, size: 100, lang: isIOS ? "hi-IN" : "pa-IN",
-  sure: 70, bg: "art/01-sttm-blue.jpg", dim: 0, alltr: false, mode: "semi" }, store.get("opts", {}));
+  sure: 70, bg: "art/01-sttm-blue.jpg", dim: 0, alltr: false, rom: true, mode: "semi", started: false }, store.get("opts", {}));
 const saveOpts = () => store.set("opts", opts);
 let DATA = "data/";
 let S = { mode: opts.mode, lines: [], current: null, kind: null, meta: {}, blank: false, suggestions: [], heard: "", confidence: null, finderReady: false };
@@ -498,13 +525,13 @@ function renderSource() {
   if (!S.kind) return;
   const b = document.createElement("b");
   if (S.kind === "bani") { b.textContent = m.name; el.append(b, document.createTextNode(`, ${S.lines.length} lines`)); return; }
-  b.textContent = m.source === "Sri Guru Granth Sahib Ji" ? `Ang ${m.page}` : `${m.pageLabel} ${m.page}`;
+  b.textContent = m.source === "Sri Guru Granth Sahib Ji" ? `Ang (page) ${m.page}` : `${m.pageLabel} ${m.page}`;
   el.append(b, document.createTextNode(`  ${[m.source, m.writer, m.section].filter(Boolean).join(", ")}`));
 }
 function renderLines(rebuild) {
   const box = $("lines");
   if (!S.lines.length) {
-    box.innerHTML = '<div class="empty"><b>No shabad yet</b>Search on the left, pick a bani, or switch to Full Auto and start listening.</div>';
+    box.innerHTML = '<div class="empty"><b>No shabad yet</b>Search in English letters on the left, pick a bani, or switch to Full Auto and press Start listening.</div>';
     return;
   }
   if (rebuild || box.children.length !== S.lines.length) {
@@ -515,7 +542,8 @@ function renderLines(rebuild) {
       b.className = "ln" + (l.type <= 2 ? " head" : "");
       const no = document.createElement("span"); no.className = "no"; no.textContent = l.type > 2 ? ++n : "";
       const tx = document.createElement("span"); tx.className = "tx"; tx.textContent = l.gurmukhi;
-      if (l.type === 3) { const r = document.createElement("span"); r.className = "rh"; r.textContent = "ਰਹਾਉ"; tx.append(r); }
+      if (l.type === 3) { const r = document.createElement("span"); r.className = "rh"; r.textContent = "ਰਹਾਉ"; r.title = "Rahao: the main line, sung again and again"; tx.append(r); }
+      if (l.translit && l.type > 2) { const ro = document.createElement("span"); ro.className = "ro"; ro.textContent = l.translit; tx.append(ro); }
       for (const [cls, txt] of [["en", l.english], ["pa", l.punjabi]]) if (txt && l.type > 2) {
         const t = document.createElement("span"); t.className = "tr " + cls; t.textContent = txt; tx.append(t);
       }
@@ -532,8 +560,8 @@ function renderLines(rebuild) {
       box.scrollTo({ top: Math.max(0, top - box.clientHeight / 3), behavior: "smooth" });
   }
 }
-const MODE_TEXT = { auto: "<b>Full Auto</b> finds the shabad itself and follows the lines. Tap any line to correct it.",
-  semi: "<b>Semi Auto</b>: you pick the shabad, it follows the lines.", manual: "<b>Manual</b>: nothing moves on its own. Use Prev, Next, or tap a line." };
+const MODE_TEXT = { auto: "<b>Full Auto</b> finds the shabad by listening and follows along. The circle shows how sure it is.",
+  semi: "<b>Semi Auto</b>: you pick the shabad, it follows along. The circle shows how sure it is.", manual: "<b>Manual</b>: nothing moves on its own. Use Prev, Next, or tap a line." };
 function renderListen() {
   const words = (S.heard || "").split(" ").filter(Boolean);
   const h = $("heard"); h.textContent = "";
@@ -551,8 +579,9 @@ function renderListen() {
     const b = document.createElement("button");
     const sm = document.createElement("small"); sm.textContent = S.mode === "auto" ? "Hearing" : "Is it this one? Tap to put it up";
     const g = document.createElement("span"); g.className = "g"; g.textContent = s.text;
+    const ro = document.createElement("span"); ro.className = "sro"; ro.textContent = s.roman || "";
     const mt = document.createElement("div"); mt.className = "meter"; mt.innerHTML = `<i style="width:${Math.min(100, Math.round(s.v / 2.5 * 100))}%"></i>`;
-    b.append(sm, g, mt); b.onclick = () => send({ t: "load", num: s.sid, line: s.line });
+    b.append(sm, g, ro, mt); b.onclick = () => send({ t: "load", num: s.sid, line: s.line });
     box.append(b);
   }
 }
@@ -611,8 +640,9 @@ function renderResults(rows) {
   for (const r of rows) {
     const b = document.createElement("button"); b.className = "res";
     const g = document.createElement("span"); g.className = "g"; g.textContent = r.gurmukhi;
-    const s = document.createElement("small"); s.textContent = `${r.source}, ${r.label} ${r.page}`;
-    b.append(g, s); b.onclick = () => { send({ t: "load", num: r.num, line: r.i }); if (matchMedia("(max-width: 960px)").matches) scrollTo({ top: 0, behavior: "smooth" }); };
+    const ro = document.createElement("span"); ro.className = "ro"; ro.textContent = r.translit;
+    const s = document.createElement("small"); s.textContent = `${r.source.replace(" Ji", "")}, ${r.label} ${r.page}`;
+    b.append(g, ro, s); b.onclick = () => { send({ t: "load", num: r.num, line: r.i }); if (matchMedia("(max-width: 960px)").matches) scrollTo({ top: 0, behavior: "smooth" }); };
     box.append(b);
   }
 }
@@ -620,7 +650,8 @@ const COMMON_BANIS = ["Jap Ji Sahib", "Jaap Sahib", "Rehras Sahib (S.)", "Sohila
 function renderBanis(banis) {
   const bx = $("banis"); bx.innerHTML = "";
   for (const [id, en, pa] of banis) {
-    const b = document.createElement("button"); b.textContent = pa; b.title = en;
+    const b = document.createElement("button"); b.title = pa;
+    b.textContent = en.replace(" (S.)", "").replace(" (T.)", " (Taksal)").replace("Tav Prasad Savaiye (Sravag Sudh)", "Tav Prasad Savaiye").replace(" (Longer)", " (long)");
     if (!COMMON_BANIS.includes(en)) b.classList.add("extra");
     b.onclick = () => { send({ t: "bani", id }); if (matchMedia("(max-width: 960px)").matches) scrollTo({ top: 0, behavior: "smooth" }); };
     bx.append(b);
@@ -635,6 +666,8 @@ for (const k of ["english", "punjabi", "translit", "next"]) {
   const el = $("o-" + k); el.checked = opts[k];
   el.onchange = () => { opts[k] = el.checked; saveOpts(); render(); };
 }
+$("o-rom").checked = opts.rom; $("lines").classList.toggle("withrom", opts.rom);
+$("o-rom").onchange = e => { opts.rom = e.target.checked; saveOpts(); $("lines").classList.toggle("withrom", opts.rom); };
 $("o-alltr").checked = opts.alltr; $("lines").classList.toggle("withtr", opts.alltr);
 $("o-alltr").onchange = e => { opts.alltr = e.target.checked; saveOpts(); $("lines").classList.toggle("withtr", opts.alltr); };
 const setV = (id, v) => $(id).textContent = v + "%";
@@ -804,6 +837,8 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
     });
   }).catch(() => {});
 }
+$("start").hidden = !!opts.started;
+$("start-x").onclick = () => { opts.started = true; saveOpts(); $("start").hidden = true; };
 render(true);
 </script>
 </body>
