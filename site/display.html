@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kirtan Follow Projector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@500;700;800&family=Open+Sans:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* Projector screen. Follows the main Kirtan Follow page open on this same device. Always a dark, blue-first look. */
+  :root { --bg1: #3b7bea; --bg2: #2a5fd3; --ink: #ffffff; color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.16), transparent 55%), linear-gradient(160deg, var(--bg1), var(--bg2));
+         color: var(--ink); overflow: hidden; font-family: "Open Sans", system-ui, sans-serif; cursor: none; }
+  #bg { position: fixed; inset: 0; background: center / cover no-repeat; opacity: 0; transition: opacity .5s ease; }
+  #bg.on { opacity: 1; }
+  #dim { position: fixed; inset: 0; background: #000; opacity: 0; }
+  #stage { position: fixed; inset: 3vh 4vw; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 1.6vh; }
+  .gurmukhi { font-family: "Noto Sans Gurmukhi", "Raavi", "Gurmukhi MN", sans-serif; font-weight: 800; font-size: calc(var(--s) * 6.2vmin); line-height: 1.35; text-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .english { font-weight: 600; font-size: calc(var(--s) * 3vmin); line-height: 1.35; }
+  .punjabi { font-family: "Noto Sans Gurmukhi", "Raavi", sans-serif; font-weight: 500; font-size: calc(var(--s) * 2.9vmin); line-height: 1.45; }
+  .translit { font-weight: 600; font-size: calc(var(--s) * 3.4vmin); line-height: 1.3; }
+  .next { font-family: "Noto Sans Gurmukhi", sans-serif; font-weight: 700; opacity: .55; font-size: calc(var(--s) * 3vmin); margin-top: 1vh; }
+  .english, .punjabi, .translit, .next { text-shadow: 0 2px 10px rgba(0,0,0,.55), 0 0 2px rgba(0,0,0,.4); }
+  [hidden] { display: none !important; }
+  #hint { position: fixed; bottom: 12px; right: 16px; font-size: 13px; opacity: .6; cursor: default; }
+  #credit { position: fixed; bottom: 8px; left: 12px; font-size: 11px; opacity: .35; }
+  #wait { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; font-size: 18px; opacity: .85; padding: 24px; }
+</style>
+</head>
+<body>
+<div id="bg"></div><div id="dim"></div>
+<div id="stage" style="--s:1">
+  <div class="gurmukhi" id="g"></div>
+  <div class="english" id="e"></div>
+  <div class="punjabi" id="p"></div>
+  <div class="translit" id="t"></div>
+  <div class="next" id="n" hidden></div>
+</div>
+<div id="wait">Waiting for the Kirtan Follow page on this device...<br>Keep that page open.</div>
+<div id="credit"></div>
+<div id="hint">Press F for full screen</div>
+<script>
+const $ = id => document.getElementById(id);
+let curBg = null, bgUrl = null, lastBase = 1;
+function fit(base) {
+  const st = $("stage"); let s = base; st.style.setProperty("--s", s);
+  for (let i = 0; i < 25 && st.scrollHeight > st.clientHeight + 2; i++) { s *= 0.94; st.style.setProperty("--s", s); }
+}
+function setBg(bg, dim) {
+  $("dim").style.opacity = (dim || 0) / 100;
+  const key = bg ? (bg.url || bg.blob) : null;
+  if (key === curBg) return;
+  curBg = key;
+  if (!bg) { $("bg").classList.remove("on"); return; }
+  if (bgUrl) URL.revokeObjectURL(bgUrl);
+  const src = bg.blob ? (bgUrl = URL.createObjectURL(bg.blob)) : bg.url;
+  const img = new Image();
+  img.onload = () => { $("bg").style.backgroundImage = `url("${src}")`; $("bg").classList.add("on"); };
+  img.src = src;
+}
+function render(m) {
+  $("wait").hidden = true;
+  const l = m.line, o = m.opts || {};
+  $("g").textContent = l ? l.gurmukhi : "";
+  $("e").textContent = l && o.english ? l.english : "";
+  $("p").textContent = l && o.punjabi ? l.punjabi : "";
+  $("t").textContent = l && o.translit ? l.translit : "";
+  for (const id of ["e", "p", "t"]) $(id).hidden = !$(id).textContent;
+  $("n").textContent = m.next || ""; $("n").hidden = !m.next;
+  $("credit").textContent = m.credit ? "Photo: " + m.credit : "";
+  setBg(m.bg, o.dim);
+  lastBase = (o.size || 100) / 100; fit(lastBase);
+}
+const bc = new BroadcastChannel("kirtan-follow");
+bc.onmessage = ({ data }) => { if (data && data.t === "slide") render(data); };
+bc.postMessage({ t: "hello" });
+setInterval(() => { if (!$("wait").hidden) bc.postMessage({ t: "hello" }); }, 1000);
+document.addEventListener("keydown", e => {
+  if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
+});
+document.addEventListener("fullscreenchange", () => $("hint").hidden = !!document.fullscreenElement);
+window.addEventListener("resize", () => fit(lastBase));
+</script>
+</body>
+</html>

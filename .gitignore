@@ -1,0 +1,7 @@
+# built in GitHub Actions on every push
+data/
+site/data/
+site/bg/photos/
+site/bg/index.json
+__pycache__/
+.DS_Store

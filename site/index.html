@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2453c4">
+<meta name="description" content="Listens to kirtan and moves the Gurbani slides by itself.">
+<title>Kirtan Follow</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@500;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Phone-first: the slide is the hero, controls under the thumb. Wide screens: slide left, controls right. */
+  :root {
+    --bg: #f3f6fb; --surface: #ffffff; --ink: #121a33; --muted: #5d6784; --rule: #dfe5f0;
+    --slide-1: #3b7bea; --slide-2: #2453c4; --kesri: #ec7d14; --kesri-ink: #ffffff;
+    --live: #17975a; --hl: #fff2e4; --hl-ink: #9a4a05;
+    --ok-bg: #dcfce7; --ok-ink: #166534; --mid-bg: #fef3c7; --mid-ink: #92400e; --lo-bg: #fee2e2; --lo-ink: #991b1b;
+    --f-gurbani: "Noto Sans Gurmukhi", "Raavi", "Gurmukhi MN", "Mukta Mahee", sans-serif;
+    --f-ui: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b1122; --surface: #141c33; --ink: #e9edf7; --muted: #98a2bd; --rule: #26304b;
+            --hl: #33240f; --hl-ink: #ffb46b; --ok-bg: #12351f; --ok-ink: #86efac; --mid-bg: #3a2c0b; --mid-ink: #fcd34d;
+            --lo-bg: #3d1414; --lo-ink: #fca5a5; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.45 var(--f-ui); -webkit-tap-highlight-color: transparent;
+         padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .g { font-family: var(--f-gurbani); }
+  button { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .wrap { max-width: 1180px; margin: 0 auto;
+          padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+
+  header { position: sticky; top: 0; z-index: 20; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); }
+  .bar { display: flex; align-items: center; gap: 10px; padding-block: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 700; font-size: 17px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; margin-right: auto; }
+  .brand svg { width: 24px; height: 24px; }
+  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; padding: 3px; }
+  .seg button { border: 0; background: none; padding: 7px 12px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .seg button.on { background: var(--kesri); color: var(--kesri-ink); }
+
+  main { display: grid; gap: 14px; padding-bottom: 28px; }
+  @media (min-width: 900px) { main { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; }
+    .side { position: sticky; top: 70px; } }
+  .col { display: grid; gap: 10px; min-width: 0; }
+
+  /* the slide, same look as the projector */
+  .slide { position: relative; border-radius: 18px; overflow: hidden; color: #fff; min-height: 300px; isolation: isolate;
+           background: radial-gradient(ellipse at 25% 15%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, var(--slide-1), var(--slide-2));
+           display: flex; flex-direction: column; justify-content: center; text-align: center;
+           padding: 30px 18px 22px; gap: 10px; user-select: none; touch-action: pan-y; }
+  .slide .bgimg, .slide .dim { position: absolute; inset: 0; z-index: -1; }
+  .slide .bgimg { background: center / cover no-repeat; opacity: 0; transition: opacity .5s; }
+  .slide .bgimg.on { opacity: 1; }
+  .slide .dim { background: #000; opacity: 0; }
+  .s-g { font-family: var(--f-gurbani); font-weight: 800; font-size: calc(var(--k, 1) * 27px); line-height: 1.4; text-wrap: balance; text-shadow: 0 1px 6px rgba(0,0,0,.3); }
+  .s-e { font-weight: 600; font-size: calc(var(--k, 1) * 15px); line-height: 1.4; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
+  .s-p { font-family: var(--f-gurbani); font-weight: 500; font-size: calc(var(--k, 1) * 15px); line-height: 1.55; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
+  .s-t { font-weight: 600; font-size: calc(var(--k, 1) * 16px); line-height: 1.35; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
+  .s-n { font-family: var(--f-gurbani); font-weight: 700; opacity: .55; font-size: calc(var(--k, 1) * 15px); }
+  .s-empty { font-size: 15px; max-width: 34ch; margin: 0 auto; }
+  .s-empty b { font-family: var(--f-gurbani); font-size: 24px; display: block; margin-bottom: 6px; }
+  .s-meta { position: absolute; top: 10px; left: 14px; font-size: 12px; opacity: .85; text-align: left; }
+  .fs-btn { position: absolute; top: 8px; right: 8px; border: 0; background: rgba(255,255,255,.18); color: #fff;
+            border-radius: 10px; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; }
+  .fs-btn svg { width: 18px; height: 18px; }
+  .slide.present { position: fixed; inset: 0; z-index: 100; border-radius: 0; min-height: 0; gap: 2vh;
+     padding: max(3vh, env(safe-area-inset-top, 0px)) max(4vw, env(safe-area-inset-right, 0px)) max(3vh, env(safe-area-inset-bottom, 0px)) max(4vw, env(safe-area-inset-left, 0px)); }
+  .slide.present .s-g { font-size: calc(var(--k, 1) * 6.4vmin); }
+  .slide.present .s-e, .slide.present .s-n { font-size: calc(var(--k, 1) * 3.1vmin); }
+  .slide.present .s-p { font-size: calc(var(--k, 1) * 3vmin); }
+  .slide.present .s-t { font-size: calc(var(--k, 1) * 3.4vmin); }
+  .slide.present .s-meta { display: none; }
+
+  .navrow { display: flex; gap: 8px; }
+  .navrow button { flex: 1; border: 1px solid var(--rule); background: var(--surface); border-radius: 12px; padding: 12px; font-weight: 600; cursor: pointer; }
+  .navrow button:active { transform: scale(.98); }
+  .navrow .on { background: var(--ink); color: var(--bg); }
+
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 18px; }
+  .listen { padding: 14px; display: grid; gap: 10px; }
+  .listen-top { display: flex; gap: 12px; align-items: center; }
+  .mic { width: 62px; height: 62px; flex: none; border-radius: 50%; border: 0; background: var(--kesri); color: #fff; cursor: pointer;
+         display: grid; place-items: center; box-shadow: 0 6px 18px -6px rgba(236,125,20,.6); }
+  .mic svg { width: 26px; height: 26px; }
+  .mic.live { background: var(--live); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(23,151,90,.5); } 70% { box-shadow: 0 0 0 14px rgba(23,151,90,0); } 100% { box-shadow: 0 0 0 0 rgba(23,151,90,0); } }
+  @media (prefers-reduced-motion: reduce) { .mic.live { animation: none; } }
+  .status { min-width: 0; flex: 1; }
+  .status b { display: flex; align-items: center; gap: 8px; font-size: 15px; flex-wrap: wrap; }
+  .status small { color: var(--muted); font-size: 13px; }
+  .sure { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .sure.hi { background: var(--ok-bg); color: var(--ok-ink); } .sure.mid { background: var(--mid-bg); color: var(--mid-ink); } .sure.lo { background: var(--lo-bg); color: var(--lo-ink); }
+  .heard { font-family: var(--f-gurbani); font-size: 17px; color: var(--muted); min-height: 1.5em; overflow-wrap: anywhere; }
+  .heard em { font-style: normal; color: var(--ink); font-weight: 700; }
+  .warn { background: var(--hl); color: var(--hl-ink); border-radius: 10px; padding: 9px 11px; font-size: 14px; }
+  .sugg { display: grid; gap: 8px; }
+  .sugg button { text-align: left; border: 1.5px dashed var(--kesri); background: var(--hl); border-radius: 12px; padding: 9px 11px; cursor: pointer; }
+  .sugg small { color: var(--hl-ink); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .sugg .g { display: block; font-weight: 700; font-size: 17px; }
+  .meter { height: 4px; background: var(--rule); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--kesri); }
+
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--rule); }
+  .tabs button { border: 0; background: none; padding: 12px 4px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--kesri); }
+  .tab { padding: 12px; }
+  .tab-head { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .now { border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--hl); display: grid; gap: 4px; }
+  .now .g { font-size: 19px; font-weight: 700; }
+  .now .en { font-size: 14px; } .now .pa { font-family: var(--f-gurbani); font-size: 14px; color: var(--muted); } .now .tl { font-size: 13px; color: var(--muted); font-style: italic; }
+  .lines { display: grid; gap: 2px; max-height: 58vh; overflow: auto; overscroll-behavior: contain; }
+  .ln { text-align: left; border: 0; background: none; padding: 10px; border-radius: 10px; font-family: var(--f-gurbani); font-size: 18px; font-weight: 600; cursor: pointer; }
+  .ln.head { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .ln.cur { background: var(--slide-2); color: #fff; }
+  .ln .tag { font-size: 11px; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: var(--hl); color: var(--hl-ink); vertical-align: middle; font-family: var(--f-ui); }
+  .ln .tr { display: block; font: 500 13px/1.45 var(--f-ui); color: var(--muted); margin-top: 3px; }
+  .ln .tr.pa { font-family: var(--f-gurbani); }
+  .ln.cur .tr { color: rgba(255,255,255,.88); }
+  .lines:not(.withtr) .ln .tr { display: none; }
+  .empty { color: var(--muted); padding: 22px 8px; text-align: center; font-size: 15px; }
+  input[type=search], textarea { width: 100%; border: 1px solid var(--rule); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 12px; font: 16px var(--f-ui); }
+  textarea { font-family: var(--f-gurbani); margin-top: 8px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 6px 2px 4px; }
+  .res { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px; border-radius: 10px; cursor: pointer; border-bottom: 1px solid var(--rule); }
+  .res .g { font-size: 18px; font-weight: 700; display: block; }
+  .res small { color: var(--muted); }
+  .banis { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .banis button { text-align: left; border: 1px solid var(--rule); background: var(--bg); border-radius: 12px; padding: 10px; cursor: pointer; }
+  .banis .g { display: block; font-weight: 700; } .banis small { color: var(--muted); }
+  .set { display: grid; gap: 14px; }
+  .set h3 { margin: 6px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .set label.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .set input[type=range] { width: 50%; }
+  select { border: 1px solid var(--rule); background: var(--bg); color: var(--ink); border-radius: 10px; padding: 8px; font: 15px var(--f-ui); max-width: 60%; }
+  .bgs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .bgs button { aspect-ratio: 16 / 9; border: 2px solid transparent; border-radius: 8px; background: center / cover no-repeat var(--bg); cursor: pointer; padding: 0; font-size: 11px; color: var(--muted); }
+  .bgs button.on { border-color: var(--kesri); box-shadow: 0 0 0 2px var(--kesri); }
+  .bgs button.plain { border-color: var(--rule); }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--rule); background: var(--bg); border-radius: 10px; padding: 9px 12px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .note { color: var(--muted); font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--kesri); outline-offset: 2px; }
+
+  #loading { position: fixed; inset: 0; z-index: 200; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 24px; }
+  #loading .g { font-size: 30px; font-weight: 800; }
+  .prog { width: min(280px, 70vw); height: 6px; border-radius: 6px; background: var(--rule); margin: 16px auto 8px; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 0; background: var(--kesri); transition: width .2s; }
+  #loading small { color: var(--muted); }
+  #toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg);
+           padding: 10px 14px; border-radius: 12px; font-size: 14px; z-index: 300; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+<div id="loading">
+  <div>
+    <div class="g">ੴ ਸਤਿਗੁਰ ਪ੍ਰਸਾਦਿ</div>
+    <div class="prog"><i id="progbar"></i></div>
+    <small id="progtext">Loading Gurbani...</small>
+  </div>
+</div>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="6.5" fill="none" stroke="var(--kesri)" stroke-width="2"/><path d="M12 2v20" stroke="var(--kesri)" stroke-width="2.4" stroke-linecap="round"/></svg>
+      Kirtan Follow
+    </div>
+    <div class="seg" id="modes" aria-label="Mode">
+      <button data-m="auto">Full Auto</button>
+      <button data-m="semi">Semi</button>
+      <button data-m="manual">Manual</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<main>
+  <div class="col">
+    <section class="slide" id="slide" aria-live="polite">
+      <div class="bgimg" id="bgimg"></div><div class="dim" id="dim"></div>
+      <div class="s-meta" id="smeta"></div>
+      <button class="fs-btn" id="fs" aria-label="Full screen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <div class="s-g" id="sg"></div>
+      <div class="s-e" id="se"></div>
+      <div class="s-p" id="sp"></div>
+      <div class="s-t" id="st"></div>
+      <div class="s-n" id="sn" hidden></div>
+      <div class="s-empty" id="sempty"><b>ਵਾਹਿਗੁਰੂ</b>Tap the mic. Full Auto finds the shabad by itself, or search for it below.</div>
+    </section>
+    <div class="navrow">
+      <button id="prev" aria-label="Previous line">‹ Prev</button>
+      <button id="blank">Blank</button>
+      <button id="next" aria-label="Next line">Next ›</button>
+    </div>
+  </div>
+
+  <div class="side col">
+    <section class="card listen">
+      <div class="listen-top">
+        <button class="mic" id="mic" aria-label="Start listening">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
+        <div class="status"><b><span id="stat1">Not listening</span><span class="sure" id="sure" hidden></span></b><small id="stat2"></small></div>
+      </div>
+      <div class="heard" id="heard"></div>
+      <div class="warn" id="warn" hidden></div>
+      <div class="sugg" id="sugg"></div>
+    </section>
+
+    <section class="card">
+      <div class="tabs">
+        <button data-t="shabad" class="on">Shabad</button>
+        <button data-t="search">Search</button>
+        <button data-t="banis">Banis</button>
+        <button data-t="settings">Settings</button>
+      </div>
+      <div class="tab" id="t-shabad">
+        <div class="tab-head" id="title"></div>
+        <div class="now" id="now" hidden>
+          <div class="g" id="now-g"></div><div class="en" id="now-en"></div><div class="pa" id="now-pa"></div><div class="tl" id="now-tl"></div>
+        </div>
+        <label class="note" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" id="o-alltr"> Translations under every line</label>
+        <div class="lines" id="lines"><div class="empty">No shabad yet.</div></div>
+      </div>
+      <div class="tab" id="t-search" hidden>
+        <input type="search" id="q" placeholder="ਕਨਸਰ, knsr, ਸੰਤਨ ਰਸ, or Ang 1302" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="hint">First letters (Gurmukhi or STTM keyboard), Gurmukhi words, or an Ang number.</div>
+        <div id="results"></div>
+      </div>
+      <div class="tab" id="t-banis" hidden><div class="banis" id="banis"></div></div>
+      <div class="tab" id="t-settings" hidden>
+        <div class="set">
+          <h3>Projector</h3>
+          <div class="btnrow">
+            <button class="btn" id="openproj">Open projector screen</button>
+          </div>
+          <div class="note">On a laptop: opens a second window. Drag it onto the projector and press F. It follows this page instantly.</div>
+
+          <h3>Slide</h3>
+          <label class="row">English <input type="checkbox" id="o-english"></label>
+          <label class="row">Punjabi teeka <input type="checkbox" id="o-punjabi"></label>
+          <label class="row">Transliteration <input type="checkbox" id="o-translit"></label>
+          <label class="row">Next line preview <input type="checkbox" id="o-next"></label>
+          <label class="row">Text size <input type="range" id="o-size" min="70" max="140" step="5"></label>
+
+          <h3>Background</h3>
+          <div class="bgs" id="bgs"></div>
+          <label class="row">Darken <input type="range" id="o-dim" min="0" max="80" step="5"></label>
+          <div class="btnrow">
+            <label class="btn" for="bgfile">Add your own photo</label>
+            <input type="file" id="bgfile" accept="image/*" hidden>
+          </div>
+          <div class="note" id="bgcredit"></div>
+
+          <h3>Listening</h3>
+          <label class="row">Switch lines when <span><b id="sure-v">70</b>% sure</span></label>
+          <input type="range" id="o-sure" min="50" max="95" step="5" style="width:100%">
+          <label class="row">Recognizer
+            <select id="o-lang">
+              <option value="pa-IN">Punjabi</option>
+              <option value="pa-Guru-IN">Punjabi (alt)</option>
+              <option value="hi-IN">Hindi (try on iPhone)</option>
+            </select>
+          </label>
+
+          <h3>Offline</h3>
+          <div class="btnrow"><button class="btn" id="warm">Save all Gurbani on this device</button></div>
+          <div class="note" id="warmnote">Keeps every shabad and bani working even if the wifi drops. About 15 MB.</div>
+
+          <details>
+            <summary>Test without ragis</summary>
+            <textarea id="testtext" rows="3" placeholder="ਕਹੁ ਨਾਨਕ ਸੰਤਨ ਰਸੁ ਆਈ ਹੈ ਜਿਉ ਚਾਖਿ ਗੂੰਗਾ ਮੁਸਕਾਰੈ"></textarea>
+            <div style="margin-top:8px"><button class="btn" id="testsend">Send as if heard</button></div>
+          </details>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+<div id="toast" hidden></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let DATA = "data/";
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("kf." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("kf." + k, JSON.stringify(v)); } catch (e) {} },
+};
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const opts = Object.assign({ english: true, punjabi: true, translit: true, next: false, size: 100, lang: isIOS ? "hi-IN" : "pa-IN",
+  sure: 70, bg: "art/01-sttm-blue.jpg", dim: 0, alltr: false, mode: "semi" }, store.get("opts", {}));
+const saveOpts = () => store.set("opts", opts);
+
+let S = { mode: opts.mode, lines: [], current: null, kind: null, meta: {}, blank: false, suggestions: [], heard: "", confidence: null };
+let ready = false, banis = [], sources = [];
+function toast(msg, ms = 2600) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms); }
+
+// ---------- worker ----------
+const W = new Worker("worker.js?v=__BUILD__");
+const send = m => W.postMessage(m);
+let searchId = 0;
+W.onmessage = ({ data: m }) => {
+  if (m.t === "progress") {
+    $("progbar").style.width = m.total ? `${Math.min(100, m.got / m.total * 100)}%` : `${Math.min(95, m.got / 7e6 * 100)}%`;
+    $("progtext").textContent = `Loading Gurbani... ${(m.got / 1e6).toFixed(1)} MB`;
+  } else if (m.t === "ready") {
+    banis = m.banis; sources = m.sources; ready = true; renderBanis(); $("loading").hidden = true;
+  } else if (m.t === "state") {
+    const lines = m.lines || S.lines;
+    S = Object.assign(S, m, { lines });
+    render(!!m.lines);
+  } else if (m.t === "search") {
+    if (m.id === searchId) renderResults(m.rows);
+  } else if (m.t === "finder") {
+    renderStatus();
+  } else if (m.t === "warm") {
+    $("warmnote").textContent = m.done >= m.total ? "Saved. Everything works on this device even if the wifi drops." : `Saving... ${Math.round(m.done / m.total * 100)}%`;
+  } else if (m.t === "error") {
+    console.warn(m.message);
+    if (!ready) $("progtext").textContent = "Couldn't load the Gurbani data. Check the connection and reload.";
+  }
+};
+W.onerror = e => { console.error(e); if (!ready) $("progtext").textContent = "Something went wrong loading. Reload the page."; };
+(async () => {
+  // which copy of the Gurbani data to use (the service worker keeps it across app updates)
+  try { const c = await (await fetch("data/current.json", { cache: "no-cache" })).json(); DATA = `data/${c.v}/`; }
+  catch (e) { DATA = store.get("dataDir", "data/"); }
+  store.set("dataDir", DATA);
+  send({ t: "init", base: new URL(DATA, location.href).href, mode: opts.mode, sure: opts.sure });
+})();
+
+// ---------- projector window (same device) ----------
+const bc = "BroadcastChannel" in self ? new BroadcastChannel("kirtan-follow") : null;
+let curBgBlob = null, curBgUrl = null, curCredit = "";
+function slideMsg() {
+  const line = currentLine();
+  const nx = line && opts.next && S.lines[S.current + 1];
+  return { t: "slide", line: line ? { gurmukhi: line.gurmukhi, english: line.english, punjabi: line.punjabi, translit: line.translit } : null,
+    next: nx ? nx.gurmukhi : null, opts: { english: opts.english, punjabi: opts.punjabi, translit: opts.translit, size: opts.size, dim: opts.dim },
+    bg: curBgBlob ? { blob: curBgBlob } : (curBgUrl ? { url: new URL(curBgUrl, location.href).href } : null), credit: curCredit };
+}
+if (bc) bc.onmessage = ({ data }) => { if (data && data.t === "hello") bc.postMessage(slideMsg()); };
+const pushSlide = () => { if (bc) bc.postMessage(slideMsg()); };
+
+// ---------- render ----------
+function currentLine() { return S.blank || S.current == null ? null : S.lines[S.current]; }
+function render(newLines) {
+  document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === S.mode));
+  const line = currentLine();
+  const slide = $("slide");
+  slide.style.setProperty("--k", opts.size / 100);
+  $("sempty").hidden = !!line || S.blank;
+  $("sg").textContent = line ? line.gurmukhi : "";
+  $("se").textContent = line && opts.english ? line.english : "";
+  $("sp").textContent = line && opts.punjabi ? line.punjabi : "";
+  $("st").textContent = line && opts.translit ? line.translit : "";
+  for (const id of ["se", "sp", "st"]) $(id).hidden = !$(id).textContent;
+  const nx = line && opts.next && S.lines[S.current + 1];
+  $("sn").textContent = nx ? nx.gurmukhi : ""; $("sn").hidden = !nx;
+  $("smeta").textContent = !line ? "" : S.kind === "bani" ? S.meta.name : (S.meta.source === "Sri Guru Granth Sahib Ji" ? "Ang " : S.meta.pageLabel + " ") + line.page;
+  fitPresent();
+  pushSlide();
+  $("blank").classList.toggle("on", S.blank); $("blank").textContent = S.blank ? "Show" : "Blank";
+  renderLines(newLines);
+  renderListen();
+}
+
+function renderLines(rebuild) {
+  const box = $("lines"), m = S.meta;
+  $("title").textContent = !S.kind ? "" : S.kind === "bani" ? `${m.name} · ${S.lines.length} lines`
+    : [m.source, `${m.pageLabel} ${m.page || ""}`, m.writer, m.section].filter(Boolean).join(" · ");
+  const cl = currentLine();
+  $("now").hidden = !cl;
+  if (cl) { $("now-g").textContent = cl.gurmukhi; $("now-en").textContent = cl.english; $("now-pa").textContent = cl.punjabi; $("now-tl").textContent = cl.translit; }
+  if (!S.lines.length) { box.innerHTML = '<div class="empty">No shabad yet. Search, pick a bani, or let Full Auto find it.</div>'; return; }
+  if (rebuild || box.children.length !== S.lines.length) {
+    box.innerHTML = "";
+    S.lines.forEach((l, i) => {
+      const b = document.createElement("button");
+      b.className = "ln" + (l.type <= 2 ? " head" : "");
+      b.append(document.createTextNode(l.gurmukhi));
+      if (l.type === 3) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "ਰਹਾਉ"; b.append(t); }
+      for (const [cls, txt] of [["en", l.english], ["pa", l.punjabi]]) if (txt && l.type > 2) {
+        const t = document.createElement("span"); t.className = "tr " + cls; t.textContent = txt; b.append(t);
+      }
+      b.onclick = () => send({ t: "go", i });
+      box.append(b);
+    });
+  }
+  [...box.children].forEach((d, i) => d.classList.toggle("cur", i === S.current));
+  const el = box.children[S.current];
+  if (el && !$("t-shabad").hidden) {
+    const top = el.offsetTop - box.offsetTop;
+    if (top < box.scrollTop || top > box.scrollTop + box.clientHeight - 60) box.scrollTo({ top: top - 40, behavior: "smooth" });
+  }
+}
+
+const MODE_TEXT = { auto: "Full Auto: finds the shabad itself and follows the lines.",
+  semi: "Semi: you pick the shabad, it follows the lines.", manual: "Manual: nothing moves on its own." };
+function renderStatus(main) {
+  $("stat1").textContent = main || (listening ? "Listening" : "Not listening");
+  $("stat2").textContent = S.mode === "auto" && !S.finderReady ? "Getting Full Auto ready..." : MODE_TEXT[S.mode];
+}
+function renderListen() {
+  const words = (S.heard || "").split(" ").filter(Boolean);
+  const h = $("heard"); h.textContent = "";
+  if (words.length) { h.append(words.slice(0, -4).join(" ") + " "); const em = document.createElement("em"); em.textContent = words.slice(-4).join(" "); h.append(em); }
+  const sb = $("sure");
+  sb.hidden = S.confidence == null || !listening || S.mode === "manual" || !S.lines.length;
+  if (!sb.hidden) { sb.textContent = `${S.confidence}% sure`; sb.className = "sure " + (S.confidence >= opts.sure ? "hi" : S.confidence >= 45 ? "mid" : "lo"); }
+  const box = $("sugg"); box.innerHTML = "";
+  if (S.mode !== "manual") for (const s of S.suggestions || []) {
+    if (!s.text) continue;
+    const b = document.createElement("button");
+    const sm = document.createElement("small"); sm.textContent = S.mode === "auto" ? "Hearing" : "Is it this one? Tap to load";
+    const g = document.createElement("span"); g.className = "g"; g.textContent = s.text;
+    const mt = document.createElement("div"); mt.className = "meter"; mt.innerHTML = `<i style="width:${Math.min(100, Math.round(s.v / 2.5 * 100))}%"></i>`;
+    b.append(sm, g, mt); b.onclick = () => send({ t: "load", num: s.sid, line: s.line });
+    box.append(b);
+  }
+  renderStatus();
+}
+function warn(msg) { $("warn").textContent = msg || ""; $("warn").hidden = !msg; }
+
+// ---------- present mode (full screen on this device) ----------
+function fitPresent() {
+  const s = $("slide");
+  if (!s.classList.contains("present")) return;
+  let k = opts.size / 100; s.style.setProperty("--k", k);
+  for (let i = 0; i < 25 && s.scrollHeight > s.clientHeight + 2; i++) { k *= 0.94; s.style.setProperty("--k", k); }
+}
+$("fs").onclick = async () => {
+  const s = $("slide"), on = !s.classList.contains("present");
+  s.classList.toggle("present", on);
+  try { if (on && s.requestFullscreen) await s.requestFullscreen(); else if (!on && document.fullscreenElement) await document.exitFullscreen(); } catch (e) {}
+  render();
+};
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && $("slide").classList.contains("present")) { $("slide").classList.remove("present"); render(); } });
+window.addEventListener("resize", fitPresent);
+let touchX = null;
+$("slide").addEventListener("touchstart", e => { touchX = e.touches[0].clientX; }, { passive: true });
+$("slide").addEventListener("touchend", e => {
+  if (touchX === null) return; const dx = e.changedTouches[0].clientX - touchX; touchX = null;
+  if (Math.abs(dx) > 50) send({ t: "step", d: dx < 0 ? 1 : -1 });
+});
+$("slide").addEventListener("click", e => {
+  if (e.target.closest(".fs-btn") || !$("slide").classList.contains("present")) return;
+  const r = $("slide").getBoundingClientRect(); send({ t: "step", d: e.clientX > r.left + r.width / 2 ? 1 : -1 });
+});
+
+// ---------- controls ----------
+document.querySelectorAll("#modes button").forEach(b => b.onclick = () => {
+  S.mode = opts.mode = b.dataset.m; saveOpts(); send({ t: "mode", mode: b.dataset.m }); render();
+});
+$("prev").onclick = () => send({ t: "step", d: -1 });
+$("next").onclick = () => send({ t: "step", d: 1 });
+$("blank").onclick = () => send({ t: "blank", on: !S.blank });
+document.addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (["ArrowRight", "ArrowDown", " "].includes(e.key)) { e.preventDefault(); send({ t: "step", d: 1 }); }
+  if (["ArrowLeft", "ArrowUp"].includes(e.key)) { e.preventDefault(); send({ t: "step", d: -1 }); }
+  if (e.key === "b") $("blank").click();
+  if (e.key === "f") $("fs").click();
+});
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  for (const t of ["shabad", "search", "banis", "settings"]) $("t-" + t).hidden = t !== b.dataset.t;
+  if (b.dataset.t === "search") $("q").focus();
+  if (b.dataset.t === "shabad") renderLines(false);
+});
+const showTab = t => document.querySelector(`.tabs button[data-t="${t}"]`).click();
+
+let qTimer;
+$("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => send({ t: "search", q: $("q").value, id: ++searchId }), 150); });
+function renderResults(rows) {
+  const box = $("results"); box.innerHTML = "";
+  if (!rows.length && $("q").value.trim()) { box.innerHTML = '<div class="empty">No matches</div>'; return; }
+  for (const r of rows) {
+    const b = document.createElement("button"); b.className = "res";
+    const g = document.createElement("span"); g.className = "g"; g.textContent = r.gurmukhi;
+    const s = document.createElement("small"); s.textContent = `${r.translit} · ${r.source} · ${r.label} ${r.page}`;
+    b.append(g, s); b.onclick = () => { send({ t: "load", num: r.num, line: r.i }); showTab("shabad"); };
+    box.append(b);
+  }
+}
+function renderBanis() {
+  const bx = $("banis"); bx.innerHTML = "";
+  for (const [id, en, pa] of banis) {
+    const b = document.createElement("button");
+    const g = document.createElement("span"); g.className = "g"; g.textContent = pa;
+    const s = document.createElement("small"); s.textContent = en;
+    b.append(g, s); b.onclick = () => { send({ t: "bani", id }); showTab("shabad"); };
+    bx.append(b);
+  }
+}
+
+// ---------- settings ----------
+for (const k of ["english", "punjabi", "translit", "next"]) {
+  const el = $("o-" + k); el.checked = opts[k];
+  el.onchange = () => { opts[k] = el.checked; saveOpts(); render(); };
+}
+$("o-alltr").checked = opts.alltr; $("lines").classList.toggle("withtr", opts.alltr);
+$("o-alltr").onchange = e => { opts.alltr = e.target.checked; saveOpts(); $("lines").classList.toggle("withtr", opts.alltr); };
+$("o-size").value = opts.size; $("o-size").oninput = e => { opts.size = +e.target.value; saveOpts(); render(); };
+$("o-dim").value = opts.dim; $("o-dim").oninput = e => { opts.dim = +e.target.value; saveOpts(); applyBg(); };
+$("o-sure").value = opts.sure; $("sure-v").textContent = opts.sure;
+$("o-sure").oninput = e => { opts.sure = +e.target.value; $("sure-v").textContent = opts.sure; saveOpts(); send({ t: "sure", v: opts.sure }); };
+$("o-lang").value = opts.lang; $("o-lang").onchange = e => { opts.lang = e.target.value; saveOpts(); if (listening) restartRec(); };
+$("openproj").onclick = () => {
+  const w = window.open("display.html", "kf-projector", "popup,width=1280,height=720");
+  if (!w) toast("Your browser blocked the window. Allow pop-ups for this site, or open display.html in a new window.");
+};
+$("warm").onclick = () => { $("warmnote").textContent = "Saving... 0%"; send({ t: "warm", base: new URL(DATA, location.href).href }); };
+$("testsend").onclick = () => {
+  const w = $("testtext").value.split(/\s+/).filter(Boolean); let i = 0, utter = "";
+  const t = setInterval(() => { if (i >= w.length) { send({ t: "heard", text: utter, final: true }); return clearInterval(t); }
+    utter += w[i++] + " "; send({ t: "heard", text: utter, final: false }); }, 450);
+};
+
+// ---------- backgrounds ----------
+let bgList = [];
+const idb = {
+  db: null,
+  open() { return this.db || (this.db = new Promise((res, rej) => { const r = indexedDB.open("kirtan-follow", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("photos", { keyPath: "id" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); },
+  async all() { try { const db = await this.open(); return await new Promise((res, rej) => { const q = db.transaction("photos").objectStore("photos").getAll(); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch (e) { return []; } },
+  async put(v) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction("photos", "readwrite"); t.objectStore("photos").put(v); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+};
+async function loadBgList() {
+  let list = [];
+  try { list = await (await fetch("bg/index.json?v=__BUILD__")).json(); } catch (e) { list = [{ file: "art/01-sttm-blue.jpg" }, { file: "art/07-black.jpg" }]; }
+  const mine = await idb.all();
+  bgList = list.map(b => ({ id: b.file, url: "bg/" + b.file, credit: b.credit || "" }))
+    .concat(mine.map(p => ({ id: "mine:" + p.id, blob: p.blob, credit: "Your photo" })));
+  renderBgs(); applyBg();
+}
+function renderBgs() {
+  const box = $("bgs"); box.innerHTML = "";
+  const plain = document.createElement("button"); plain.className = "plain"; plain.textContent = "Plain"; plain.dataset.id = "";
+  plain.onclick = () => pickBg(""); box.append(plain);
+  for (const b of bgList) {
+    const el = document.createElement("button"); el.dataset.id = b.id; el.title = b.credit || "";
+    el.style.backgroundImage = `url("${b.blob ? (b.thumb || (b.thumb = URL.createObjectURL(b.blob))) : b.url}")`;
+    el.onclick = () => pickBg(b.id);
+    box.append(el);
+  }
+  box.querySelectorAll("button").forEach(x => x.classList.toggle("on", (x.dataset.id || "") === (opts.bg || "")));
+}
+function pickBg(id) {
+  opts.bg = id;
+  if (id && !id.startsWith("art/") && opts.dim < 30) { opts.dim = 35; $("o-dim").value = 35; }   // photos need darkening
+  saveOpts(); renderBgs(); applyBg();
+}
+function applyBg() {
+  const b = bgList.find(x => x.id === opts.bg);
+  curBgBlob = b && b.blob ? b.blob : null; curBgUrl = b && !b.blob ? b.url : null; curCredit = b && b.credit && !b.blob ? b.credit : "";
+  $("bgcredit").textContent = curCredit ? "Photo: " + curCredit : "";
+  const el = $("bgimg");
+  if (!b) { el.classList.remove("on"); }
+  else { const src = b.blob ? (b.thumb || (b.thumb = URL.createObjectURL(b.blob))) : b.url;
+    const img = new Image(); img.onload = () => { el.style.backgroundImage = `url("${src}")`; el.classList.add("on"); }; img.src = src; }
+  $("dim").style.opacity = (opts.dim || 0) / 100;
+  pushSlide();
+}
+$("bgfile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const id = Date.now().toString(36); await idb.put({ id, blob: f, name: f.name }); await loadBgList(); pickBg("mine:" + id); toast("Photo added. It's saved on this device."); }
+  catch (err) { toast("Couldn't save the photo on this device."); }
+  e.target.value = "";
+};
+loadBgList();
+
+// ---------- speech recognition ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let listening = false, rec = null, wakeLock = null, lastWords = 0, lastInterim = 0;
+const LANGS = ["pa-IN", "pa-Guru-IN", "hi-IN"];
+function startRec() {
+  rec = new SR();
+  rec.lang = opts.lang; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+  rec.onresult = ev => {
+    lastWords = Date.now(); if ($("warn").dataset.quiet) { warn(""); delete $("warn").dataset.quiet; }
+    let interim = "";
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const r = ev.results[i];
+      if (r.isFinal) send({ t: "heard", text: r[0].transcript, final: true }); else interim += r[0].transcript + " ";
+    }
+    const now = Date.now();
+    if (interim && now - lastInterim > 60) { lastInterim = now; send({ t: "heard", text: interim, final: false }); }
+  };
+  rec.onerror = ev => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { warn("The microphone is blocked. Allow the microphone for this site in your browser settings, then tap the mic again."); stop(); }
+    else if (ev.error === "language-not-supported") {
+      opts.lang = LANGS[(LANGS.indexOf(opts.lang) + 1) % LANGS.length]; saveOpts(); $("o-lang").value = opts.lang;
+      warn(`That recognizer isn't available here. Switched to ${$("o-lang").selectedOptions[0].text}.`);
+    } else if (ev.error === "network") warn("Speech recognition needs internet. Check the wifi or data.");
+  };
+  rec.onend = () => { if (listening) setTimeout(() => { if (listening) startRec(); }, 150); };   // phones stop after silence
+  try { rec.start(); } catch (e) {}
+}
+function restartRec() { try { rec && rec.abort(); } catch (e) {} }
+function stop() {
+  listening = false; try { rec && rec.abort(); } catch (e) {}
+  $("mic").classList.remove("live"); $("mic").setAttribute("aria-label", "Start listening"); renderListen();
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+$("mic").onclick = async () => {
+  if (listening) return stop();
+  if (!SR) { warn("This browser can't do speech recognition. Use Chrome on a laptop or Android, or Safari on iPhone."); return; }
+  warn(""); listening = true; lastWords = Date.now();
+  $("mic").classList.add("live"); $("mic").setAttribute("aria-label", "Stop listening"); renderListen();
+  startRec();
+  send({ t: "finder" });   // also powers the "Is it this one?" suggestions in Semi
+  try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+};
+setInterval(() => {
+  if (!listening || Date.now() - lastWords < 20000) return;
+  $("warn").dataset.quiet = "1";
+  warn("No words heard for 20 seconds. Move closer to the speakers or plug into the sound board, check the browser has the right microphone, or try the Hindi recognizer in Settings.");
+}, 5000);
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && listening && !wakeLock) { try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+});
+
+// ---------- offline + updates ----------
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").then(reg => {
+    reg.addEventListener("updatefound", () => {
+      const nw = reg.installing;
+      nw && nw.addEventListener("statechange", () => { if (nw.state === "installed" && navigator.serviceWorker.controller) toast("A new version is ready. It loads next time you open the app.", 5000); });
+    });
+  }).catch(() => {});
+}
+renderStatus();
+</script>
+</body>
+</html>

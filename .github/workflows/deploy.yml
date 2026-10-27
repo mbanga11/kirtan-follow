@@ -1,0 +1,86 @@
+name: Build and publish website
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: pip install -r tools/requirements.txt
+
+      # The Gurbani database only rebuilds when the tools that make it change
+      - name: Cache Gurbani database
+        id: dbcache
+        uses: actions/cache@v4
+        with:
+          path: data/gurbani.sqlite
+          key: gurbani-db-${{ hashFiles('tools/build_db.py', 'tools/phonetic.py') }}
+
+      - name: Build Gurbani database
+        if: steps.dbcache.outputs.cache-hit != 'true'
+        run: python tools/build_db.py
+
+      - name: Build website data
+        run: python tools/build_web.py
+
+      # Background photos from Wikimedia Commons (free licenses, credits kept)
+      - name: Cache photos
+        uses: actions/cache@v4
+        with:
+          path: site/bg/photos
+          key: photos-${{ hashFiles('tools/fetch_photos.py') }}
+
+      - name: Download photos
+        run: |
+          if [ ! -f site/bg/photos/credits.json ]; then
+            python tools/fetch_photos.py || echo "Photos skipped this time; the drawn backgrounds are used instead."
+          fi
+          python tools/build_bg_index.py
+
+      - name: Smoke test (fails the deploy if the slides stop following)
+        run: node tools/smoke_test.js
+
+      - name: Stamp version
+        run: |
+          V="${GITHUB_SHA::8}"
+          sed -i "s/__BUILD__/$V/g" site/sw.js site/index.html site/worker.js
+          touch site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
